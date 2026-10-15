@@ -106,6 +106,7 @@ function Send-Target($cachedPort, $cachedVid, $target) {
 
 # 光り方の好み（お客さんが AI に頼むと書き換わる colors.json）からランプに送る文を作る
 #   例: { "brightness": 50, "work": { "color": [128, 0, 255], "mode": "breathe" } }
+#   color は [赤, 緑, 青] か "rainbow"（虹色）。mode は solid / breathe / blink / fastblink
 #   brightness は 1〜100（%）。色を決めていない状態は、今までどおりの光り方（S <状態>）
 #   いつも先に明るさ（B）を送る（好みのファイルを消したときに、明るさが元に戻るように）
 function Get-LampLine($target) {
@@ -122,9 +123,13 @@ function Get-LampLine($target) {
             }
             if ($target -ne 'off' -and $pref.ContainsKey($target)) {
                 $c = $pref[$target]['color']; $mode = [string]$pref[$target]['mode']
-                if (@('solid', 'breathe', 'blink') -notcontains $mode) { $mode = 'solid' }
-                $rgb = @($c | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
-                if ($rgb.Count -eq 3) { $color = "C $($rgb[0]) $($rgb[1]) $($rgb[2]) $mode" }
+                if (@('solid', 'breathe', 'blink', 'fastblink') -notcontains $mode) { $mode = 'solid' }
+                if ($c -is [string] -and $c -eq 'rainbow') {
+                    $color = "R $mode"   # 虹色（ランプのファーム v1.0 から）
+                } else {
+                    $rgb = @($c | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
+                    if ($rgb.Count -eq 3) { $color = "C $($rgb[0]) $($rgb[1]) $($rgb[2]) $mode" }
+                }
             }
         }
     } catch { }   # 好みのファイルが壊れていても、今までどおりに光らせる
