@@ -131,7 +131,7 @@ if ($apps.Count -gt 0) {
         "  ・Claude アプリは右上の × では裏で動き続けることがあるので、左上の「≡」→「ファイル」→「終了」で終了します（画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png）。"
     }
     if ($didCodex) {
-        "  ・Codex アプリは右上の × では裏で動き続けることがあるので、メニューの「ファイル」→「ChatGPT を終了」で終了します（Codex でもメニューには「ChatGPT」と出ます）。"
+        "  ・Codex アプリは右上の × では裏で動き続けることがあるので、メニューの「ファイル」→「ChatGPT を終了」で終了します（Codex でもメニューには「ChatGPT」と出ます。画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/codex-quit.png）。"
         "  ・開き直したら、まだ承認していなければランプのフックを承認します（承認済みなら不要）。"
     }
     "  ・そのあと新しい会話で作業を頼み、青 → 緑 と光るか確かめてください（上の緑 2 秒は「ランプが見つかった」確認で、AI との連動はこれから確かめます）。"

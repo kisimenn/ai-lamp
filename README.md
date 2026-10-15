@@ -55,7 +55,7 @@ d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/re
 スクリプトの最後の案内のとおり、**設定したアプリだけ**を終了して開き直してもらう。
 - **見本の画像は、案内する前にお客さんのブラウザで開いておく**（アプリを閉じても、ブラウザの画像は残って見ながら操作できる）。Windows: `Start-Process '<画像のURL>'`、Mac: `open '<画像のURL>'`
 - Windows の Claude アプリは、右上の × では裏で動き続けることがある。左上の「≡」→「ファイル」→「終了」で終了してもらう。画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png
-- Windows の Codex アプリは、右上の × では裏で動き続けることがある。メニューの「ファイル」→「ChatGPT を終了」で終了してもらう（Codex でもメニューには ChatGPT と出る）。
+- Windows の Codex アプリは、右上の × では裏で動き続けることがある。メニューの「ファイル」→「ChatGPT を終了」で終了してもらう（Codex でもメニューには ChatGPT と出る）。画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/codex-quit.png
 - Mac は Command + Q で終了。
 - 開き直したら新しい会話で何か頼んでもらい、**青 → 緑** と光るか確かめてもらう。
 - 2 の緑2秒は「ランプが見つかった」確認で、AI との連動の確認ではない。この2つを混ぜて「連動も確認済み」と言わない。
