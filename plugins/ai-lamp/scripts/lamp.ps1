@@ -369,7 +369,8 @@ try {
                 if ([System.Threading.Mutex]::TryOpenExisting('Local\ai-lamp-watch', [ref]$m)) {
                     $m.Dispose()   # 動いている
                 } else {
-                    $cmd = "`"$((Get-Command powershell.exe).Source)`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$watch`""
+                    # conhost の --headless で起動して、ターミナルの窓を出さない（Windows 11 は Hidden でも窓が開くため）
+                    $cmd = "`"$(Join-Path $env:WINDIR 'System32\conhost.exe')`" --headless `"$((Get-Command powershell.exe).Source)`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$watch`""
                     [void](Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $cmd })
                 }
             }

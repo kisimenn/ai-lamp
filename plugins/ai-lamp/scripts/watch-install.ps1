@@ -13,11 +13,15 @@ $dest = Join-Path $env:USERPROFILE '.cache\ai-lamp\watch'
 Copy-Item -Force (Join-Path $PSScriptRoot 'lamp.ps1'), (Join-Path $PSScriptRoot 'lamp-watch.ps1') $dest
 
 $watch = Join-Path $dest 'lamp-watch.ps1'
-$args_ = "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$watch`""
+$ps = (Get-Command powershell.exe).Source
+# Windows 11 は、ふつうに起動するとターミナルの窓が開いてしまう（-WindowStyle Hidden でも）。
+# conhost の --headless で起動すると、窓を一切出さずに動く
+$conhost = Join-Path $env:WINDIR 'System32\conhost.exe'
+$args_ = "--headless `"$ps`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$watch`""
 $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'ai-lamp-watch.lnk'
 $shell = New-Object -ComObject WScript.Shell
 $sc = $shell.CreateShortcut($lnk)
-$sc.TargetPath = (Get-Command powershell.exe).Source
+$sc.TargetPath = $conhost
 $sc.Arguments = $args_
 $sc.WindowStyle = 7   # 最小化
 $sc.Description = 'AI通知ランプ 画面の見張り'
