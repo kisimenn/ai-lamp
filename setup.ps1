@@ -117,6 +117,8 @@ if (Test-Path $test) {
     $results += (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $test | Out-String).Trim()
 }
 
+# 結果は UTF-8 で出す（AI のアプリが読むときに文字化けしないように。子のスクリプトの出力を受け取り終わってから切り替える）
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch {}
 "=== AI通知ランプの設定結果 ==="
 $results
 # 最後の案内は、実際に設定したアプリだけを対象にする

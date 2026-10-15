@@ -2,6 +2,8 @@
 #   Claude Code のプラグイン、Codex のフック、既読で消える機能、ランプの記録をすべて外す。
 #   実行例: powershell -NoProfile -ExecutionPolicy Bypass -File uninstall.ps1
 $scripts = Join-Path $PSScriptRoot 'plugins\ai-lamp\scripts'
+# 結果は UTF-8 で出す（AI のアプリが読むときに文字化けしないように。子のスクリプトの出力は使わない）
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch {}
 
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scripts 'watch-uninstall.ps1') | Out-Null
 "OK 既読で消える機能を外しました"
