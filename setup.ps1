@@ -11,7 +11,7 @@
 param([switch]$Watch, [switch]$NoWatch, [switch]$NoCodex)
 
 $ErrorActionPreference = 'Stop'
-$GitHubRepo = 'katoken0604-beep/ai-lamp'   # 配布リポジトリ（公開前に書き換える）
+$GitHubRepo = 'kisimenn/ai-lamp'   # 配布リポジトリ（公開前に書き換える）
 $here = $PSScriptRoot
 $market = Join-Path $env:USERPROFILE '.cache\ai-lamp\market'
 $scripts = Join-Path $market 'plugins\ai-lamp\scripts'

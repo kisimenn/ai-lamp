@@ -31,7 +31,7 @@ description: AI通知ランプ（旧名 AI作業通知ランプ。USBランプ�
 6. それでも光らないときは、ターミナルで `AI_LAMP_PORT=/dev/cu.usbmodemXXXX` を決め打ちして試す、または出た結果をユーザーに見せてもらう。
 
 ## 入れて／外して／Codex でも使いたい と言われたら
-配布リポジトリ https://github.com/katoken0604-beep/ai-lamp の README.md に、ダウンロードから設定までの手順がある。**README の手順どおりに進める**（スクリプトを自分で書かない）。
+配布リポジトリ https://github.com/kisimenn/ai-lamp の README.md に、ダウンロードから設定までの手順がある。**README の手順どおりに進める**（スクリプトを自分で書かない）。
 ダウンロード先 `~/.cache/ai-lamp/src/ai-lamp-main` のいちばん上に、まとめて設定する `setup.sh` と、まとめて外す `uninstall.sh` がある。
 - 入れる: そのフォルダの `bash setup.sh` を実行する（Codex の設定を飛ばすなら `bash setup.sh --no-codex`）。
   Codex が入っていれば Codex 用のフックも自動で入る。

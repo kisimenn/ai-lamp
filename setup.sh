@@ -11,7 +11,7 @@
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MARKET="$HOME/.cache/ai-lamp/market"
 SCRIPTS="$MARKET/plugins/ai-lamp-mac/scripts"
-GITHUB_REPO="katoken0604-beep/ai-lamp"   # 配布リポジトリ（公開前に書き換える）
+GITHUB_REPO="kisimenn/ai-lamp"   # 配布リポジトリ（公開前に書き換える）
 NO_CODEX=0
 for a in "$@"; do [ "$a" = "--no-codex" ] && NO_CODEX=1; done
 

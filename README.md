@@ -25,14 +25,14 @@ AI の作業状態を USB ランプの色で知らせます（作業中=青 / �
 ## 1. ダウンロード（Windows）
 PowerShell で、次をそのまま実行する（`%USERPROFILE%\.cache\ai-lamp\src` に置く）。
 ```powershell
-$d = Join-Path $env:USERPROFILE '.cache\ai-lamp\src'; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/katoken0604-beep/ai-lamp/archive/refs/heads/main.zip' -OutFile (Join-Path $d 'repo.zip'); Expand-Archive -Force (Join-Path $d 'repo.zip') $d; Get-ChildItem $d -Directory | Select-Object -ExpandProperty FullName
+$d = Join-Path $env:USERPROFILE '.cache\ai-lamp\src'; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip' -OutFile (Join-Path $d 'repo.zip'); Expand-Archive -Force (Join-Path $d 'repo.zip') $d; Get-ChildItem $d -Directory | Select-Object -ExpandProperty FullName
 ```
 最後に表示されたフォルダ（`...\ai-lamp-main`）を、次の手順で使う。
 
 ## 1. ダウンロード（Mac）
 ターミナルで、次をそのまま実行する（`~/.cache/ai-lamp/src` に置く）。
 ```bash
-d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/repo.zip" https://github.com/katoken0604-beep/ai-lamp/archive/refs/heads/main.zip && unzip -q -o "$d/repo.zip" -d "$d" && ls -d "$d"/*/
+d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/repo.zip" https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip && unzip -q -o "$d/repo.zip" -d "$d" && ls -d "$d"/*/
 ```
 最後に表示されたフォルダ（`.../ai-lamp-main/`）を、次の手順で使う。
 
@@ -61,7 +61,7 @@ d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/re
 ## 4. Codex のフックを承認（Codex を使っている人だけ・1回だけ）
 Codex は、ランプ用のフックを1回承認しないと光らない（承認するまで黙って飛ばされる）。必ず伝える。
 - Codex アプリ: 入力欄の下に出る、**黄色い点付きのフックのアイコン** →「フックの確認」で、`lamp.ps1`（Mac は `lamp.pl`）と書かれたランプ用のフックを許可する。全部ランプ用なら「すべて許可」、ほかのフックも並んでいれば**ランプ用だけ**選んで「選択した項目を許可」。これで完了。
-- アイコンの画像: https://github.com/katoken0604-beep/ai-lamp/blob/main/docs/フック承認アイコン.png （お客さんに見せるとよい）
+- アイコンの画像: https://github.com/kisimenn/ai-lamp/blob/main/docs/フック承認アイコン.png （お客さんに見せるとよい）
 - アイコンのとなりの文字は Codex の設定で変わるので、目印にしない。
 - アイコンが出ないときは、承認済みのこともある。設定 → Hooks で確かめてもらう（決めつけない）。
 - ターミナルの Codex は `/hooks` で承認する。

@@ -53,7 +53,7 @@
   <li>ランプをパソコンの USB に挿します（虹色が流れれば準備OK）。<br>
     <b>Mac の場合</b>：はじめて挿すと「アクセサリの接続を許可しますか？ AI Lamp をこの Mac に接続しますか？」と表示されます。<b>「許可」を押してください。</b>「許可しない」を押すと、ランプと通信できません（押してしまったときは、ランプを抜いて挿し直すと、もう一度表示されることがあります）。</li>
   <li>Claude Code（または Codex）に、次の文をそのまま打って送ります（コピーして貼っても大丈夫です）。
-<pre>AI通知ランプを設定して。手順は github.com/katoken0604-beep/ai-lamp の README のとおりに。</pre>
+<pre>AI通知ランプを設定して。手順は github.com/kisimenn/ai-lamp の README のとおりに。</pre>
     AI が手順書（README）を読み、設定ファイルをダウンロードして中身を確認してから、設定します。<br>
     途中で「ネットにつないでいいですか？」「入れていいですか？」などと聞かれたら、「はい」と答えてください。Windows では「既読で消える機能を使いますか？」とも聞かれます（下の「既読で消える機能」を参照）。</li>
   <li><b>AI に「自分で実行してください」と言われたら</b>、AI が表示した実行ボタンを押すか、表示されたコマンドをそのまま実行してください。使っている AI の安全の設定によっては、ダウンロードしたものを AI が自分では実行できないことがあります（そのときだけで、ふつうは AI が最後まで進めます）。</li>
@@ -74,7 +74,7 @@
 </ol>
 <p>（設定の最後に緑が 2 秒光るのは「ランプが見つかった」という確認です。AI と連動して光るかどうかは、この手順 6 で確かめます。）</p>
 <div class="note">
-  <b>自分で設定したい場合</b>：<code>https://github.com/katoken0604-beep/ai-lamp</code> を開き、緑の「Code」→「Download ZIP」で設定ファイルを取って展開します。中の <code>setup.ps1</code> を右クリック →「PowerShell で実行」。<br>
+  <b>自分で設定したい場合</b>：<code>https://github.com/kisimenn/ai-lamp</code> を開き、緑の「Code」→「Download ZIP」で設定ファイルを取って展開します。中の <code>setup.ps1</code> を右クリック →「PowerShell で実行」。<br>
   既読で消える機能も使う場合は、PowerShell で <code>powershell -ExecutionPolicy Bypass -File setup.ps1 -Watch</code> と打ちます。<br>
   <b>Mac の場合</b>：ターミナルで、展開したフォルダに移動して <code>bash setup.sh</code> と打ちます。<br>
   <code>setup.ps1</code>（Mac は <code>setup.sh</code>）が何をするかは、ファイルの先頭に日本語で書いてあります。
