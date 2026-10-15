@@ -1,0 +1,109 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "work"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "work"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog|agent_needs_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "ask"
+            ],
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "done"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "done"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "ask"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/perl",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.pl",
+              "end"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

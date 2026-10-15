@@ -1,0 +1,17 @@
+{
+  "name": "ai-lamp-market",
+  "description": "AI通知ランプ用のプラグイン置き場",
+  "owner": { "name": "ai-lamp" },
+  "plugins": [
+    {
+      "name": "ai-lamp",
+      "source": "./plugins/ai-lamp",
+      "description": "AIの作業状態をUSBランプで知らせる（作業中=青 / 完了=緑 / あなたの出番（許可・質問・エラー）=橙）。Windows 用"
+    },
+    {
+      "name": "ai-lamp-mac",
+      "source": "./plugins/ai-lamp-mac",
+      "description": "AIの作業状態をUSBランプで知らせる（作業中=青 / 完了=緑 / あなたの出番（許可・質問・エラー）=橙）。Mac 用"
+    }
+  ]
+}
