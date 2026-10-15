@@ -53,6 +53,7 @@ d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/re
 
 ## 3. アプリを開き直す
 スクリプトの最後の案内のとおり、**設定したアプリだけ**を終了して開き直してもらう。
+- Windows の Claude アプリは、右上の × では裏で動き続けることがある。左上の「≡」→「ファイル」→「終了」で終了してもらう。画面の見本: https://github.com/kisimenn/ai-lamp/blob/main/docs/Claudeアプリの終了.png （お客さんに見せるとよい）
 - Windows の Codex アプリは、右上の × では裏で動き続けることがある。メニューの「ファイル」→「ChatGPT を終了」で終了してもらう（Codex でもメニューには ChatGPT と出る）。
 - Mac は Command + Q で終了。
 - 開き直したら新しい会話で何か頼んでもらい、**青 → 緑** と光るか確かめてもらう。
