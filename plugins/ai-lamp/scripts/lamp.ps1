@@ -91,8 +91,8 @@ function Get-LampPorts {
 
 # ランプに状態を送る。送れたら @(ポート, VID)、だめなら $null
 #   速さのため、前回見つけた場所には「ID?」を聞かずにすぐ送る（ランプ以外なら OK が返らないので探し直す）
-function Send-Target($cachedPort, $cachedVid, $target) {
-    $line = Get-LampLine $target
+function Send-Target($cachedPort, $cachedVid, $target, $app) {
+    $line = Get-LampLine $target $app
     if ($env:AI_LAMP_PORT) {
         if (Invoke-Lamp $env:AI_LAMP_PORT '' $line 'OK') { return @($env:AI_LAMP_PORT, '') }
         return $null
@@ -109,9 +109,15 @@ function Send-Target($cachedPort, $cachedVid, $target) {
 #   color は [赤, 緑, 青] か "rainbow"（虹色）。mode は solid / breathe / blink / fastblink
 #   brightness は 1〜100（%）。色を決めていない状態は、今までどおりの光り方（S <状態>）
 #   いつも先に明るさ（B）を送る（好みのファイルを消したときに、明るさが元に戻るように）
-function Get-LampLine($target) {
+#   ほかに使える項目（どれも書かなければ使わない）:
+#     "night":     { "from": "22:00", "to": "07:00", "brightness": 20 }  夜の間だけ明るさを変える
+#     "celebrate": true                                                  終わったときに虹色でお祝い（ファーム v1.1 から）
+#     "long_work": { "minutes": 10, "color": [160, 0, 255] }            作業がこの時間続いたら色を変える（ファーム v1.1 から）
+#     "codex" / "claude": { "work": {...}, "done": {...}, "ask": {...} } その AI のときだけ使う色（上の work などより優先）
+function Get-LampLine($target, $app) {
     $bright = 255
     $color = $null
+    $extra = @()
     try {
         $f = Join-Path $dir 'colors.json'
         if (Test-Path $f) {
@@ -121,20 +127,47 @@ function Get-LampLine($target) {
                 $pct = [double]$pref['brightness']
                 if ($pct -ge 1 -and $pct -le 100) { $bright = [int][Math]::Round($pct * 255 / 100) }
             }
-            if ($target -ne 'off' -and $pref.ContainsKey($target)) {
-                $c = $pref[$target]['color']; $mode = [string]$pref[$target]['mode']
-                if (@('solid', 'breathe', 'blink', 'fastblink') -notcontains $mode) { $mode = 'solid' }
-                if ($c -is [string] -and $c -eq 'rainbow') {
-                    $color = "R $mode"   # 虹色（ランプのファーム v1.0 から）
-                } else {
-                    $rgb = @($c | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
-                    if ($rgb.Count -eq 3) { $color = "C $($rgb[0]) $($rgb[1]) $($rgb[2]) $mode" }
+            # 夜の明るさ（from〜to の時刻の間。日をまたいでもよい）
+            $night = $pref['night']
+            if ($night -is [System.Collections.IDictionary]) {
+                try {
+                    $nowMin = (Get-Date).Hour * 60 + (Get-Date).Minute
+                    $fm = [TimeSpan]::Parse([string]$night['from']).TotalMinutes
+                    $tm = [TimeSpan]::Parse([string]$night['to']).TotalMinutes
+                    $inNight = if ($fm -le $tm) { $nowMin -ge $fm -and $nowMin -lt $tm } else { $nowMin -ge $fm -or $nowMin -lt $tm }
+                    $np = [double]$night['brightness']
+                    if ($inNight -and $np -ge 1 -and $np -le 100) { $bright = [int][Math]::Round($np * 255 / 100) }
+                } catch { }
+            }
+            if ($target -ne 'off') {
+                # その AI 用の色があればそれを、無ければふつうの色を使う
+                $e = $null
+                if ($app -and $pref[$app] -is [System.Collections.IDictionary] -and $pref[$app][$target]) { $e = $pref[$app][$target] }
+                elseif ($pref[$target] -is [System.Collections.IDictionary]) { $e = $pref[$target] }
+                if ($e) {
+                    $c = $e['color']; $mode = [string]$e['mode']
+                    if (@('solid', 'breathe', 'blink', 'fastblink') -notcontains $mode) { $mode = 'solid' }
+                    if ($c -is [string] -and $c -eq 'rainbow') {
+                        $color = "R $mode"   # 虹色（ランプのファーム v1.0 から）
+                    } else {
+                        $rgb = @($c | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
+                        if ($rgb.Count -eq 3) { $color = "C $($rgb[0]) $($rgb[1]) $($rgb[2]) $mode" }
+                    }
                 }
+                # 長い作業の目安（作業中のときだけ）
+                $lw = $pref['long_work']
+                if ($target -eq 'work' -and $lw -is [System.Collections.IDictionary]) {
+                    $min = [double]$lw['minutes']
+                    $lc = @($lw['color'] | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
+                    if ($min -ge 1 -and $min -le 500 -and $lc.Count -eq 3) { $extra += "L $([int]($min * 60)) $($lc[0]) $($lc[1]) $($lc[2])" }
+                }
+                # 終わったときのお祝い
+                if ($target -eq 'done' -and $hookEvent -eq 'Stop' -and $pref['celebrate'] -eq $true) { $extra += 'X' }   # 返事が終わった瞬間だけ
             }
         }
     } catch { }   # 好みのファイルが壊れていても、今までどおりに光らせる
     if (-not $color) { $color = "S $target" }
-    return "B $bright`n$color"
+    return (@("B $bright", $color) + $extra) -join "`n"
 }
 
 # 動作の記録（会話の中身は書かない。種類・合図の名前・会話番号の先頭・結果・かかった時間だけ）
@@ -258,7 +291,8 @@ try {
             $tp = $null
             if ($transcript) { $tp = [string]$transcript }
             else { $prev = Get-Val (Get-Val $sessions $session) 'tp'; if ($prev) { $tp = [string]$prev } }
-            $sessions[$session] = @{ state = $Kind; ts = $now; tp = $tp }
+            $app = if ($tp -and $tp -match '[\\/]\.claude[\\/]') { 'claude' } elseif ($tp -and $tp -notmatch '[\\/]\.codex[\\/]') { 'claude' } else { 'codex' }
+            $sessions[$session] = @{ state = $Kind; ts = $now; tp = $tp; app = $app }
             # 初めて見る会話なら、発言を引き継いだ元の会話（やり直し・再開の元）を外す（置き去りになっているため）
             if ($isNew -and $tp) {
                 $mine = Get-Uuids $tp
@@ -278,6 +312,7 @@ try {
         # 生きているセッションの中で、いちばん優先度の高い状態を選ぶ
         $alive = @{}
         $target = 'off'
+        $leadApp = $null; $leadTs = -1
         foreach ($k in @($sessions.Keys)) {
             $v = $sessions[$k]
             $age = $now - [double](Get-Val $v 'ts')
@@ -287,7 +322,8 @@ try {
             if (@('work', 'ask') -contains $state -and $k -ne $session -and $age -ge 15 -and (Test-Interrupted (Get-Val $v 'tp'))) { continue }
             if ($age -lt $SessionTtl) {
                 $alive[$k] = $v
-                if ($Priority[(Get-Val $v 'state')] -gt $Priority[$target]) { $target = Get-Val $v 'state' }
+                if ($Priority[(Get-Val $v 'state')] -gt $Priority[$target]) { $target = Get-Val $v 'state'; $leadTs = -1 }
+                if ((Get-Val $v 'state') -eq $target -and [double](Get-Val $v 'ts') -gt $leadTs) { $leadTs = [double](Get-Val $v 'ts'); $leadApp = Get-Val $v 'app' }
             }
         }
         $st['sessions'] = $alive
@@ -297,7 +333,7 @@ try {
         # （ランプが自動で再起動した・挿し直した、などで表示が消えていても、ここで正しい色に戻る）
         $force = @('UserPromptSubmit', 'Stop', 'PermissionRequest', 'Notification') -contains $hookEvent
         if ($target -ne (Get-Val $st 'sent') -or $force) {
-            $found = Send-Target (Get-Val $st 'port') (Get-Val $st 'vid') $target
+            $found = Send-Target (Get-Val $st 'port') (Get-Val $st 'vid') $target $leadApp
             if ($found) {
                 $st['sent'] = $target; $st['port'] = $found[0]; $st['vid'] = $found[1]; $st['sent_at'] = $now
                 $result = "ok($($found[0]))"

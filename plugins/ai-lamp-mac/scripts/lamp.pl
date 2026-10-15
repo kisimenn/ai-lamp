@@ -77,9 +77,10 @@ sub read_line {
 #   color は [赤, 緑, 青] か "rainbow"（虹色）。mode は solid / breathe / blink / fastblink
 #   brightness は 1〜100（%）。色を決めていない状態は今までどおり（S <状態>）。いつも先に明るさ（B）を送る
 sub lamp_line {
-    my ($dir, $target) = @_;
+    my ($dir, $target, $app, $event) = @_;
     my $bright = 255;
     my $color;
+    my @extra;
     if (open(my $cf, '<', "$dir/colors.json")) {
         local $/;
         my $pref = eval { JSON::PP->new->relaxed->decode(<$cf>) };
@@ -87,19 +88,50 @@ sub lamp_line {
         if (ref($pref) eq 'HASH') {
             my $pct = $pref->{brightness};
             if (defined $pct && $pct =~ /^[\d.]+$/ && $pct >= 1 && $pct <= 100) { $bright = int($pct * 255 / 100 + 0.5); }
-            my $e = $target ne 'off' ? $pref->{$target} : undef;
-            my $mode = ref($e) eq 'HASH' ? ($e->{mode} // 'solid') : 'solid';
-            $mode = 'solid' unless $mode =~ /^(solid|breathe|blink|fastblink)$/;
-            if (ref($e) eq 'HASH' && defined $e->{color} && !ref($e->{color}) && $e->{color} eq 'rainbow') {
-                $color = "R $mode";   # 虹色（ランプのファーム v1.0 から）
-            } elsif (ref($e) eq 'HASH' && ref($e->{color}) eq 'ARRAY' && @{ $e->{color} } == 3) {
-                my @rgb = map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 255 ? 255 : $v } @{ $e->{color} };
-                $color = "C @rgb $mode";
+            # 夜の明るさ（from〜to の時刻の間。日をまたいでもよい）
+            my $n = $pref->{night};
+            if (ref($n) eq 'HASH' && ($n->{from} // '') =~ /^(\d+):(\d+)$/) {
+                my $fm = $1 * 60 + $2;
+                if (($n->{to} // '') =~ /^(\d+):(\d+)$/) {
+                    my $tm = $1 * 60 + $2;
+                    my @lt = localtime();
+                    my $nm = $lt[2] * 60 + $lt[1];
+                    my $in = $fm <= $tm ? ($nm >= $fm && $nm < $tm) : ($nm >= $fm || $nm < $tm);
+                    my $np = $n->{brightness};
+                    if ($in && defined $np && $np =~ /^[\d.]+$/ && $np >= 1 && $np <= 100) { $bright = int($np * 255 / 100 + 0.5); }
+                }
+            }
+            if ($target ne 'off') {
+                # その AI 用の色があればそれを、無ければふつうの色を使う
+                my $e;
+                if ($app && ref($pref->{$app}) eq 'HASH' && ref($pref->{$app}{$target}) eq 'HASH') { $e = $pref->{$app}{$target}; }
+                elsif (ref($pref->{$target}) eq 'HASH') { $e = $pref->{$target}; }
+                if ($e) {
+                    my $mode = $e->{mode} // 'solid';
+                    $mode = 'solid' unless $mode =~ /^(solid|breathe|blink|fastblink)$/;
+                    if (defined $e->{color} && !ref($e->{color}) && $e->{color} eq 'rainbow') {
+                        $color = "R $mode";   # 虹色（ランプのファーム v1.0 から）
+                    } elsif (ref($e->{color}) eq 'ARRAY' && @{ $e->{color} } == 3) {
+                        my @rgb = map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 255 ? 255 : $v } @{ $e->{color} };
+                        $color = "C @rgb $mode";
+                    }
+                }
+                # 長い作業の目安（作業中のときだけ）
+                my $lw = $pref->{long_work};
+                if ($target eq 'work' && ref($lw) eq 'HASH' && ref($lw->{color}) eq 'ARRAY' && @{ $lw->{color} } == 3) {
+                    my $min = $lw->{minutes} // 0;
+                    if ($min =~ /^[\d.]+$/ && $min >= 1 && $min <= 500) {
+                        my @lc = map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 255 ? 255 : $v } @{ $lw->{color} };
+                        push @extra, 'L ' . int($min * 60) . " @lc";
+                    }
+                }
+                # 終わったときのお祝い
+                push @extra, 'X' if $target eq 'done' && ($event // '') eq 'Stop' && $pref->{celebrate} && JSON::PP::is_bool($pref->{celebrate});
             }
         }
     }
     $color //= "S $target";
-    return "B $bright\n$color";
+    return join("\n", "B $bright", $color, @extra);
 }
 
 sub invoke_lamp {
@@ -245,7 +277,9 @@ sub main {
         my $isNew = !exists $sessions->{$session};
         my $tp = $transcript;
         if (!defined $tp && ref($sessions->{$session}) eq 'HASH') { $tp = $sessions->{$session}{tp}; }
-        $sessions->{$session} = { state => $Kind, ts => $now, tp => $tp };
+        # どの AI の会話か（Claude は記録が .claude の下にある。記録が届かないのは Codex）
+        my $app = (defined $tp && $tp !~ m{/\.codex/}) ? 'claude' : 'codex';
+        $sessions->{$session} = { state => $Kind, ts => $now, tp => $tp, app => $app };
         # 初めて見る会話なら、発言を引き継いだ元の会話（やり直し・再開の元）を外す（置き去りになっているため）
         if ($isNew && $tp) {
             my $mine = get_uuids($tp);
@@ -265,6 +299,7 @@ sub main {
     # 生きているセッションの中で、いちばん優先度の高い状態を選ぶ
     my %alive;
     my $target = 'off';
+    my ($leadApp, $leadTs) = (undef, -1);
     foreach my $k (keys %$sessions) {
         my $v = $sessions->{$k};
         next unless ref $v eq 'HASH';
@@ -275,7 +310,8 @@ sub main {
         next if ($state eq 'work' || $state eq 'ask') && $k ne $session && $age >= 15 && test_interrupted($v->{tp});
         if ($age < $SessionTtl) {
             $alive{$k} = $v;
-            $target = $state if ($Priority{$state} // 0) > $Priority{$target};
+            if (($Priority{$state} // 0) > $Priority{$target}) { $target = $state; $leadTs = -1; }
+            if ($state eq $target && ($v->{ts} // 0) > $leadTs) { $leadTs = $v->{ts} // 0; $leadApp = $v->{app}; }
         }
     }
     $st->{sessions} = \%alive;
@@ -285,7 +321,7 @@ sub main {
     my $force = grep { $hookEvent eq $_ } qw(UserPromptSubmit Stop PermissionRequest Notification);
     if (($st->{sent} // '') ne $target || $force) {
         my $port = find_lamp($st->{port});
-        if (defined $port && invoke_lamp($port, lamp_line($dir, $target), 'OK')) {
+        if (defined $port && invoke_lamp($port, lamp_line($dir, $target, $leadApp, $hookEvent), 'OK')) {
             $st->{sent} = $target; $st->{port} = $port; $st->{sent_at} = $now;
         } else {
             $st->{sent} = undef;   # ランプ未接続。次回また試す
