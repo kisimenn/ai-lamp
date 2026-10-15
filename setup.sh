@@ -59,7 +59,14 @@ if [ -n "$CLAUDE" ]; then
   "$CLAUDE" plugin marketplace remove ai-lamp-market >/dev/null 2>&1
   # GitHub から入れる（更新が届く）。届かないときはコピーから入れる（更新は届かない）
   FROM="GitHub"; S1=1; R1=""
-  case "$GITHUB_REPO" in *OWNER*) ;; *) R1="$("$CLAUDE" plugin marketplace add "$GITHUB_REPO" 2>&1)"; S1=$? ;; esac
+  # GitHub から入れるには git が要る。Mac は git が無いと「コマンドラインデベロッパツールを
+  # インストールしますか？」という画面が急に出てお客さんが迷うので、git が使えるときだけ GitHub を使う
+  HAS_GIT=0
+  if xcode-select -p >/dev/null 2>&1; then HAS_GIT=1
+  elif command -v git >/dev/null 2>&1 && [ "$(command -v git)" != "/usr/bin/git" ]; then HAS_GIT=1; fi
+  if [ $HAS_GIT -eq 1 ]; then
+    case "$GITHUB_REPO" in *OWNER*) ;; *) R1="$("$CLAUDE" plugin marketplace add "$GITHUB_REPO" 2>&1)"; S1=$? ;; esac
+  fi
   if [ $S1 -ne 0 ]; then
     FROM="このパソコンのコピー"
     "$CLAUDE" plugin marketplace remove ai-lamp-market >/dev/null 2>&1
