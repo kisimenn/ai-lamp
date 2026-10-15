@@ -53,7 +53,8 @@ d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/re
 
 ## 3. アプリを開き直す
 スクリプトの最後の案内のとおり、**設定したアプリだけ**を終了して開き直してもらう。
-- Windows の Claude アプリは、右上の × では裏で動き続けることがある。左上の「≡」→「ファイル」→「終了」で終了してもらう。画面の見本: https://github.com/kisimenn/ai-lamp/blob/main/docs/Claudeアプリの終了.png （お客さんに見せるとよい）
+- **見本の画像は、案内する前にお客さんのブラウザで開いておく**（アプリを閉じても、ブラウザの画像は残って見ながら操作できる）。Windows: `Start-Process '<画像のURL>'`、Mac: `open '<画像のURL>'`
+- Windows の Claude アプリは、右上の × では裏で動き続けることがある。左上の「≡」→「ファイル」→「終了」で終了してもらう。画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png
 - Windows の Codex アプリは、右上の × では裏で動き続けることがある。メニューの「ファイル」→「ChatGPT を終了」で終了してもらう（Codex でもメニューには ChatGPT と出る）。
 - Mac は Command + Q で終了。
 - 開き直したら新しい会話で何か頼んでもらい、**青 → 緑** と光るか確かめてもらう。
@@ -62,7 +63,7 @@ d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/re
 ## 4. Codex のフックを承認（Codex を使っている人だけ・1回だけ）
 Codex は、ランプ用のフックを1回承認しないと光らない（承認するまで黙って飛ばされる）。必ず伝える。
 - Codex アプリ: 入力欄の下に出る、**黄色い点付きのフックのアイコン** →「フックの確認」で、`lamp.ps1`（Mac は `lamp.pl`）と書かれたランプ用のフックを許可する。全部ランプ用なら「すべて許可」、ほかのフックも並んでいれば**ランプ用だけ**選んで「選択した項目を許可」。これで完了。
-- アイコンの画像: https://github.com/kisimenn/ai-lamp/blob/main/docs/フック承認アイコン.png （お客さんに見せるとよい）
+- アイコンの画像: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/hook-icon.png （3 と同じく、ブラウザで開いて見せる）
 - アイコンのとなりの文字は Codex の設定で変わるので、目印にしない。
 - アイコンが出ないときは、承認済みのこともある。設定 → Hooks で確かめてもらう（決めつけない）。
 - ターミナルの Codex は `/hooks` で承認する。

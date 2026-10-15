@@ -128,7 +128,7 @@ if ($didCodex) { $apps += 'Codex' }
 if ($apps.Count -gt 0) {
     "最後に、$($apps -join ' と ') のアプリを終了して、開き直してください。"
     if ($didClaude) {
-        "  ・Claude アプリは右上の × では裏で動き続けることがあるので、左上の「≡」→「ファイル」→「終了」で終了します（画面の見本: https://github.com/kisimenn/ai-lamp/blob/main/docs/Claudeアプリの終了.png）。"
+        "  ・Claude アプリは右上の × では裏で動き続けることがあるので、左上の「≡」→「ファイル」→「終了」で終了します（画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png）。"
     }
     if ($didCodex) {
         "  ・Codex アプリは右上の × では裏で動き続けることがあるので、メニューの「ファイル」→「ChatGPT を終了」で終了します（Codex でもメニューには「ChatGPT」と出ます）。"
