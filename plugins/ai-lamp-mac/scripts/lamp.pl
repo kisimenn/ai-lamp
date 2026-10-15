@@ -72,6 +72,33 @@ sub read_line {
 }
 
 # 1行送って、期待する返事が来るか（関係ない行は3行まで読み飛ばす）
+# 光り方の好み（お客さんが AI に頼むと書き換わる colors.json）からランプに送る文を作る（Windows の lamp.ps1 と同じ）
+#   例: { "brightness": 50, "work": { "color": [128, 0, 255], "mode": "breathe" } }
+#   brightness は 1〜100（%）。色を決めていない状態は今までどおり（S <状態>）。いつも先に明るさ（B）を送る
+sub lamp_line {
+    my ($dir, $target) = @_;
+    my $bright = 255;
+    my $color;
+    if (open(my $cf, '<', "$dir/colors.json")) {
+        local $/;
+        my $pref = eval { JSON::PP->new->relaxed->decode(<$cf>) };
+        close $cf;
+        if (ref($pref) eq 'HASH') {
+            my $pct = $pref->{brightness};
+            if (defined $pct && $pct =~ /^[\d.]+$/ && $pct >= 1 && $pct <= 100) { $bright = int($pct * 255 / 100 + 0.5); }
+            my $e = $target ne 'off' ? $pref->{$target} : undef;
+            if (ref($e) eq 'HASH' && ref($e->{color}) eq 'ARRAY' && @{ $e->{color} } == 3) {
+                my @rgb = map { my $v = int($_ // 0); $v < 0 ? 0 : $v > 255 ? 255 : $v } @{ $e->{color} };
+                my $mode = $e->{mode} // 'solid';
+                $mode = 'solid' unless $mode =~ /^(solid|breathe|blink)$/;
+                $color = "C @rgb $mode";
+            }
+        }
+    }
+    $color //= "S $target";
+    return "B $bright\n$color";
+}
+
 sub invoke_lamp {
     my ($port, $line, $expect) = @_;
     if ($ENV{AI_LAMP_FAKE_LOG}) {
@@ -255,7 +282,7 @@ sub main {
     my $force = grep { $hookEvent eq $_ } qw(UserPromptSubmit Stop PermissionRequest Notification);
     if (($st->{sent} // '') ne $target || $force) {
         my $port = find_lamp($st->{port});
-        if (defined $port && invoke_lamp($port, "S $target", 'OK')) {
+        if (defined $port && invoke_lamp($port, lamp_line($dir, $target), 'OK')) {
             $st->{sent} = $target; $st->{port} = $port; $st->{sent_at} = $now;
         } else {
             $st->{sent} = undef;   # ランプ未接続。次回また試す

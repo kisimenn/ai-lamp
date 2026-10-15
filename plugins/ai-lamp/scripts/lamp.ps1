@@ -92,15 +92,44 @@ function Get-LampPorts {
 # ランプに状態を送る。送れたら @(ポート, VID)、だめなら $null
 #   速さのため、前回見つけた場所には「ID?」を聞かずにすぐ送る（ランプ以外なら OK が返らないので探し直す）
 function Send-Target($cachedPort, $cachedVid, $target) {
+    $line = Get-LampLine $target
     if ($env:AI_LAMP_PORT) {
-        if (Invoke-Lamp $env:AI_LAMP_PORT '' "S $target" 'OK') { return @($env:AI_LAMP_PORT, '') }
+        if (Invoke-Lamp $env:AI_LAMP_PORT '' $line 'OK') { return @($env:AI_LAMP_PORT, '') }
         return $null
     }
-    if ($cachedPort -and (Invoke-Lamp $cachedPort $cachedVid "S $target" 'OK')) { return @($cachedPort, $cachedVid) }
+    if ($cachedPort -and (Invoke-Lamp $cachedPort $cachedVid $line 'OK')) { return @($cachedPort, $cachedVid) }
     foreach ($p in Get-LampPorts) {
-        if ((Invoke-Lamp $p.Port $p.Vid 'ID?' 'AILAMP') -and (Invoke-Lamp $p.Port $p.Vid "S $target" 'OK')) { return @($p.Port, $p.Vid) }
+        if ((Invoke-Lamp $p.Port $p.Vid 'ID?' 'AILAMP') -and (Invoke-Lamp $p.Port $p.Vid $line 'OK')) { return @($p.Port, $p.Vid) }
     }
     return $null
+}
+
+# 光り方の好み（お客さんが AI に頼むと書き換わる colors.json）からランプに送る文を作る
+#   例: { "brightness": 50, "work": { "color": [128, 0, 255], "mode": "breathe" } }
+#   brightness は 1〜100（%）。色を決めていない状態は、今までどおりの光り方（S <状態>）
+#   いつも先に明るさ（B）を送る（好みのファイルを消したときに、明るさが元に戻るように）
+function Get-LampLine($target) {
+    $bright = 255
+    $color = $null
+    try {
+        $f = Join-Path $dir 'colors.json'
+        if (Test-Path $f) {
+            $js = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+            $pref = $js.DeserializeObject([System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8))
+            if ($pref.ContainsKey('brightness')) {
+                $pct = [double]$pref['brightness']
+                if ($pct -ge 1 -and $pct -le 100) { $bright = [int][Math]::Round($pct * 255 / 100) }
+            }
+            if ($target -ne 'off' -and $pref.ContainsKey($target)) {
+                $c = $pref[$target]['color']; $mode = [string]$pref[$target]['mode']
+                if (@('solid', 'breathe', 'blink') -notcontains $mode) { $mode = 'solid' }
+                $rgb = @($c | ForEach-Object { [Math]::Max(0, [Math]::Min(255, [int]$_)) })
+                if ($rgb.Count -eq 3) { $color = "C $($rgb[0]) $($rgb[1]) $($rgb[2]) $mode" }
+            }
+        }
+    } catch { }   # 好みのファイルが壊れていても、今までどおりに光らせる
+    if (-not $color) { $color = "S $target" }
+    return "B $bright`n$color"
 }
 
 # 動作の記録（会話の中身は書かない。種類・合図の名前・会話番号の先頭・結果・かかった時間だけ）
