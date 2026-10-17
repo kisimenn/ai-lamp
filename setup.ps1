@@ -118,7 +118,7 @@ for ($i = 0; $i -lt 10 -and -not $running; $i++) {
 $seenOn = -not (Test-Path (Join-Path $env:USERPROFILE '.cache\ai-lamp\seen-off'))
 if ($ok -and $running) {
     $results += "OK 常駐の係を入れました（合図をすぐランプに送ります。パソコン起動時に自動で動きます）"
-    $results += $(if ($seenOn) { "OK 既読で消える機能はオンです" } else { "-- 既読で消える機能はオフです" })
+    $results += $(if ($seenOn) { "OK 既読で消える機能はオンです" } else { "-- 既読で消える機能はオフです（ランプは、ランプの先のタッチに触れると消えます）" })
 } else { $results += "NG 常駐の係を始められませんでした（ランプは光りますが、少し遅くなります）:`n$out" }
 
 # 5. ランプがつながっているか確かめて、緑に 2 秒光らせる（AI もお客さんも、結果をそのまま見ればよい）
@@ -136,7 +136,7 @@ $apps = @()
 if ($didClaude) { $apps += 'Claude' }
 if ($didCodex) { $apps += 'Codex' }
 if ($apps.Count -gt 0) {
-    "（AI へ）ここから先は README の 3 からのとおり、見本の画像を見せてから、ひとつずつ案内してください。下の案内を一度にまとめて伝えないでください。"
+    "（AI へ）ここから先は README の 3 からのとおりに案内してください（画像と操作の説明は一緒に出し、返事を待つのは操作が終わったときだけ）。下の案内を一度にまとめて伝えないでください。"
     "最後に、$($apps -join ' と ') のアプリを終了して、開き直してください。"
     if ($didClaude) {
         "  ・Claude アプリは右上の × では裏で動き続けることがあるので、左上の「≡」→「ファイル」→「終了」で終了します（画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png）。"
@@ -145,7 +145,7 @@ if ($apps.Count -gt 0) {
         "  ・Codex アプリは右上の × では裏で動き続けることがあるので、メニューの「ファイル」→「ChatGPT を終了」で終了します（Codex でもメニューには「ChatGPT」と出ます。画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/codex-quit.png）。"
         "  ・開き直したら、まだ承認していなければランプのフックを承認します（承認済みなら不要）。"
     }
-    "  ・そのあと新しい会話で作業を頼み、青 → 緑 と光るか確かめてください（上の緑 2 秒は「ランプが見つかった」確認で、AI との連動はこれから確かめます）。"
+    "  ・そのあと新しい会話で「こんにちは」と送り、送ったあとに青、返事が終わると緑に光るか確かめてください（上の緑 2 秒は「ランプが見つかった」確認で、AI との連動はこれから確かめます）。"
 }
 ""
 "光り方は、AI に頼めば変えられます。たとえば:"

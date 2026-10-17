@@ -4,16 +4,21 @@
 #     1. プラグイン一式を ~/.cache/ai-lamp/market にコピー（展開したフォルダを消しても困らないように）
 #     2. Claude Code にプラグインを入れる（入っていれば入れ直す）
 #     3. Codex が入っていれば、Codex 用のフックも入れる
+#     4. 既読で消える機能（--watch のとき入れる、--no-watch のとき外す。どちらも無ければ今のまま）※Mac 版は試験中
 #   何度実行しても同じ結果になる。外すときは uninstall.sh
-#   ※ 既読で消える機能は、Mac 版にはまだありません
 #
-#   実行例: bash setup.sh        （Codex の設定を飛ばしたいとき: bash setup.sh --no-codex）
+#   実行例: bash setup.sh --watch   （Codex の設定を飛ばしたいとき: --no-codex を付ける）
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MARKET="$HOME/.cache/ai-lamp/market"
 SCRIPTS="$MARKET/plugins/ai-lamp-mac/scripts"
 GITHUB_REPO="kisimenn/ai-lamp"   # 配布リポジトリ（公開前に書き換える）
 NO_CODEX=0
-for a in "$@"; do [ "$a" = "--no-codex" ] && NO_CODEX=1; done
+WATCH=keep
+for a in "$@"; do
+  [ "$a" = "--no-codex" ] && NO_CODEX=1
+  [ "$a" = "--watch" ] && WATCH=on
+  [ "$a" = "--no-watch" ] && WATCH=off
+done
 
 if [ "$(uname)" != "Darwin" ] && [ -z "$AI_LAMP_SKIP_OS_CHECK" ]; then
   echo "これは Mac 用の設定です。Windows の方は setup.ps1 を使ってください。"
@@ -97,7 +102,20 @@ elif [ $NO_CODEX -eq 0 ]; then
   add "-- Codex は入っていないようなので、Codex 用の設定は飛ばしました"
 fi
 
-# 4. ランプがつながっているか確かめて、緑に 2 秒光らせる（AI もお客さんも、結果をそのまま見ればよい）
+# 4. 既読で消える機能（Mac 版は試験中）
+WATCH_PLIST="$HOME/Library/LaunchAgents/local.ai-lamp.watch.plist"
+if [ "$WATCH" = "keep" ] && [ -f "$WATCH_PLIST" ]; then WATCH=on; fi   # 前に入れていれば、入れ直す（置き場所が変わっても動くように）
+if [ "$WATCH" = "on" ]; then
+  rm -f "$HOME/.cache/ai-lamp/seen-off"
+  add "$(/usr/bin/perl "$SCRIPTS/watch-install.pl" 2>&1)"
+elif [ "$WATCH" = "off" ]; then
+  /usr/bin/perl "$SCRIPTS/watch-install.pl" --uninstall >/dev/null 2>&1
+  add "-- 既読で消える機能は使いません（ランプは、ランプの先のタッチに触れると消えます）"
+else
+  add "-- 既読で消える機能は入れていません"
+fi
+
+# 5. ランプがつながっているか確かめて、緑に 2 秒光らせる（AI もお客さんも、結果をそのまま見ればよい）
 add "$(/usr/bin/perl "$SCRIPTS/lamp.pl" test 2>&1)"
 
 echo "=== AI通知ランプの設定結果 ==="
@@ -107,12 +125,12 @@ APPS=""
 [ $DID_CLAUDE -eq 1 ] && APPS="Claude"
 [ $DID_CODEX -eq 1 ] && APPS="${APPS:+$APPS と }Codex"
 if [ -n "$APPS" ]; then
-  echo "（AI へ）ここから先は README の 3 からのとおり、ひとつずつ案内してください。下の案内を一度にまとめて伝えないでください。"
+  echo "（AI へ）ここから先は README の 3 からのとおりに案内してください（画像と操作の説明は一緒に出し、返事を待つのは操作が終わったときだけ）。下の案内を一度にまとめて伝えないでください。"
   echo "最後に、$APPS のアプリを終了して、開き直してください（command キーを押したまま Q を押すと終了できます）。"
   if [ $DID_CODEX -eq 1 ]; then
     echo "  ・開き直したら、まだ承認していなければランプのフックを承認します（承認済みなら不要）。"
   fi
-  echo "  ・そのあと新しい会話で作業を頼み、青 → 緑 と光るか確かめてください（上の緑 2 秒は「ランプが見つかった」確認で、AI との連動はこれから確かめます）。"
+  echo "  ・そのあと新しい会話で「こんにちは」と送り、送ったあとに青、返事が終わると緑に光るか確かめてください（上の緑 2 秒は「ランプが見つかった」確認で、AI との連動はこれから確かめます）。"
 fi
 echo ""
 echo "光り方は、AI に頼めば変えられます。たとえば:"

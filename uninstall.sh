@@ -1,6 +1,6 @@
 #!/bin/bash
 # AI通知ランプ まとめて外す（Mac）
-#   Claude Code のプラグイン、Codex のフック、ランプの記録をすべて外す。
+#   Claude Code のプラグイン、Codex のフック、既読で消える機能、ランプの記録をすべて外す。
 #   実行例: bash uninstall.sh
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPTS="$HERE/plugins/ai-lamp-mac/scripts"
@@ -28,6 +28,11 @@ if [ -n "$CLAUDE" ]; then
   "$CLAUDE" plugin uninstall ai-lamp@ai-lamp-market >/dev/null 2>&1   # 0.6.6 までの名前
   "$CLAUDE" plugin marketplace remove ai-lamp-market >/dev/null 2>&1
   echo "OK Claude Code のプラグインを外しました"
+fi
+
+# 既読で消える機能（見張り）を止めて外す
+if [ -f "$HOME/Library/LaunchAgents/local.ai-lamp.watch.plist" ]; then
+  /usr/bin/perl "$SCRIPTS/watch-install.pl" --uninstall
 fi
 
 rm -rf "$HOME/.cache/ai-lamp"

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# AI通知ランプ 送信スクリプト（Mac 版）v0.6.1
+# AI通知ランプ 送信スクリプト（Mac 版）v0.8.2
 # Windows 版（lamp.ps1）と同じ動き。Mac に最初から入っている Perl だけで動く（ほかのソフトは不要）。
 #
 #   使い方: lamp.pl <work|done|ask|error|end|seen|tick|test>
@@ -239,6 +239,8 @@ sub main {
     my $stateFile = "$dir/state.json";
     my $lockFile  = "$dir/state.lock";
     my $now = time;
+    my $t0 = time;
+    my $sendRes = 'same';
 
     # 複数のフックが同時に動くので、状態ファイルはロックしてから触る（異常終了してもロックは自動で外れる）
     sysopen(my $lock, $lockFile, O_RDWR | O_CREAT, 0600) or return;
@@ -323,8 +325,10 @@ sub main {
         my $port = find_lamp($st->{port});
         if (defined $port && invoke_lamp($port, lamp_line($dir, $target, $leadApp, $hookEvent), 'OK')) {
             $st->{sent} = $target; $st->{port} = $port; $st->{sent_at} = $now;
+            $sendRes = "ok($port)";
         } else {
             $st->{sent} = undef;   # ランプ未接続。次回また試す
+            $sendRes = defined $port ? "NG(ランプが返事をしませんでした: $port)" : 'NG(ランプが見つかりません)';
         }
     }
 
@@ -335,6 +339,24 @@ sub main {
         rename($tmp, $stateFile);
     }
     close $lock;
+    write_event($dir, sprintf('%s event=%s session=%s target=%s send=%s %dms', $Kind, $hookEvent, substr($session, 0, 8), $target, $sendRes, (time - $t0) * 1000));
+}
+
+# 動作の記録（合図の種類・会話番号の先頭・結果・かかった時間。会話の中身は書かない）。Windows 版と同じ形
+# 「光らない」と言われたとき、AI がここを見て「合図が来ていない」のか「ランプに届いていない」のかを切り分ける
+sub write_event {
+    my ($dir, $msg) = @_;
+    eval {
+        my $f = "$dir/events.log";
+        rename($f, "$f.old") if -f $f && -s $f > 200 * 1024;
+        my @lt = localtime();
+        my $ms = int((time - int(time)) * 1000);
+        if (open(my $lf, '>>', $f)) {
+            printf $lf "%04d-%02d-%02d %02d:%02d:%02d.%03d %s\n", $lt[5] + 1900, $lt[4] + 1, $lt[3], $lt[2], $lt[1], $lt[0], $ms, $msg;
+            close $lf;
+        }
+        1;
+    };
 }
 
 # ---------- ランプの確認（setup.sh の最後） ----------
