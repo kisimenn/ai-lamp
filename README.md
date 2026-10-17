@@ -2,6 +2,7 @@
 
 この文書は、お客さんに頼まれた AI（Claude Code または Codex）が読んで実行するための手順です。
 AI の作業状態を USB ランプの色で知らせます（作業中=青 / 完了=緑 / あなたの出番=橙）。
+お客さん向けの初期設定マニュアル（PDF）: https://github.com/kisimenn/ai-lamp/blob/main/docs/setup-manual.pdf
 
 ## AI への約束ごと（必ず守る）
 - **スクリプトや設定を自分で書かない。** 下に書いたコマンドだけを、書いたとおりに実行する。設定ファイル（settings.json・hooks.json・config.toml）を手で編集しない。
