@@ -7,15 +7,18 @@
 #     4. 既読で消える機能（--watch のとき入れる、--no-watch のとき外す。どちらも無ければ今のまま）※Mac 版は試験中
 #   何度実行しても同じ結果になる。外すときは uninstall.sh
 #
-#   実行例: bash setup.sh --watch   （Codex の設定を飛ばしたいとき: --no-codex を付ける）
+#   実行例: bash setup.sh --watch
+#   使わない AI は飛ばせる: --no-claude（Claude Code に入れない）、--no-codex（Codex に入れない）
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MARKET="$HOME/.cache/ai-lamp/market"
 SCRIPTS="$MARKET/plugins/ai-lamp-mac/scripts"
 GITHUB_REPO="kisimenn/ai-lamp"   # 配布リポジトリ（公開前に書き換える）
 NO_CODEX=0
+NO_CLAUDE=0
 WATCH=keep
 for a in "$@"; do
   [ "$a" = "--no-codex" ] && NO_CODEX=1
+  [ "$a" = "--no-claude" ] && NO_CLAUDE=1
   [ "$a" = "--watch" ] && WATCH=on
   [ "$a" = "--no-watch" ] && WATCH=off
 done
@@ -58,8 +61,11 @@ chmod +x "$SCRIPTS"/*.pl 2>/dev/null
 add "OK プラグイン一式をコピーしました: $MARKET"
 
 # 2. Claude Code にプラグインを入れる（いったん外して入れ直す＝何度実行しても同じ）
-CLAUDE="$(find_claude)"
-if [ -n "$CLAUDE" ]; then
+CLAUDE=""
+[ $NO_CLAUDE -eq 0 ] && CLAUDE="$(find_claude)"
+if [ $NO_CLAUDE -eq 1 ]; then
+  add "-- Claude Code では使わないとのことなので、Claude 用の設定は飛ばしました"
+elif [ -n "$CLAUDE" ]; then
   "$CLAUDE" plugin uninstall ai-lamp@ai-lamp-market >/dev/null 2>&1   # 0.6.6 までの名前（Mac 版も ai-lamp だった）
   "$CLAUDE" plugin marketplace remove ai-lamp-market >/dev/null 2>&1
   # GitHub から入れる（更新が届く）。届かないときはコピーから入れる（更新は届かない）
@@ -100,6 +106,8 @@ if [ $NO_CODEX -eq 0 ] && [ -d "$HOME/.codex" ]; then
   fi
 elif [ $NO_CODEX -eq 0 ]; then
   add "-- Codex は入っていないようなので、Codex 用の設定は飛ばしました"
+else
+  add "-- Codex では使わないとのことなので、Codex 用の設定は飛ばしました"
 fi
 
 # 4. 既読で消える機能（Mac 版は試験中）

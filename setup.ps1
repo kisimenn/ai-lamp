@@ -5,10 +5,12 @@
 #        GitHub から入れる（更新が届く）。GitHub に届かないときは 1. のコピーから入れる
 #     3. Codex が入っていれば、Codex 用のフックも入れる
 #     4. 既読で消える機能: -Watch でオン、-NoWatch でオフ（どちらも無ければ今のまま）
+#   使わない AI は飛ばせる: -NoClaude（Claude Code に入れない）、-NoCodex（Codex に入れない）。
+#   お客さんが使わない AI まで入れると、開き直しやフックの承認の案内が増えるため
 #   何度実行しても同じ結果になる。外すときは uninstall.ps1
 #
 #   実行例: powershell -NoProfile -ExecutionPolicy Bypass -File setup.ps1 -Watch
-param([switch]$Watch, [switch]$NoWatch, [switch]$NoCodex)
+param([switch]$Watch, [switch]$NoWatch, [switch]$NoCodex, [switch]$NoClaude)
 
 $ErrorActionPreference = 'Stop'
 $GitHubRepo = 'kisimenn/ai-lamp'   # 配布リポジトリ（公開前に書き換える）
@@ -60,8 +62,10 @@ if ($bout -match '合図係を作りました') { $results += 'OK 合図係を�
 else { $results += "-- 合図係を作れなかったので、今までどおりの方法で光らせます（少し遅くなることがあります）" }
 
 # 2. Claude Code にプラグインを入れる（いったん外して入れ直す＝何度実行しても同じ）
-$claude = Find-Claude
-if ($claude) {
+$claude = if ($NoClaude) { $null } else { Find-Claude }
+if ($NoClaude) {
+    $results += "-- Claude Code では使わないとのことなので、Claude 用の設定は飛ばしました"
+} elseif ($claude) {
     [void](Invoke-Quiet $claude @('plugin', 'marketplace', 'remove', 'ai-lamp-market'))
     $from = 'GitHub'
     $r1 = @{ ok = $false; text = '' }
@@ -98,6 +102,8 @@ if (-not $NoCodex -and (Test-Path (Join-Path $env:USERPROFILE '.codex'))) {
     }
 } elseif (-not $NoCodex) {
     $results += "-- Codex は入っていないようなので、Codex 用の設定は飛ばしました"
+} else {
+    $results += "-- Codex では使わないとのことなので、Codex 用の設定は飛ばしました"
 }
 
 # 4. 常駐の係（v0.8）と既読で消える機能
