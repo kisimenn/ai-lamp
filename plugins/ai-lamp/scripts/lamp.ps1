@@ -44,7 +44,7 @@ function Invoke-Lamp($port, $vid, $line, $expect) {
     $held = $false
     try {
         try { $held = $mx.WaitOne(1500) } catch [System.Threading.AbandonedMutexException] { $held = $true }
-        if (-not $held) { return $false }
+        if (-not $held) { $script:LastLampError = "順番待ちが長すぎた"; return $false }
         $s = Open-Lamp $port $vid
         try {
             $s.DiscardInBuffer()
@@ -52,11 +52,16 @@ function Invoke-Lamp($port, $vid, $line, $expect) {
             for ($i = 0; $i -lt 3; $i++) {
                 $r = $s.ReadLine().Trim()
                 if ($r.StartsWith($expect)) { return $true }
-                if ($r -eq 'ERR') { return $false }
+                if ($r -eq 'ERR') { $script:LastLampError = "$port がERRを返した"; return $false }
             }
+            $script:LastLampError = "$port から期待した返事が無い"
             return $false
         } finally { $s.Close() }
-    } catch { return $false }
+    } catch {
+        # 届かなかった理由を記録に残す（USB が切れた／ほかのソフトが使用中／ポートが無い、などを見分けるため）
+        $script:LastLampError = "$port " + ($_.Exception.Message -replace '\s+', ' ').Trim()
+        return $false
+    }
     finally { if ($held) { $mx.ReleaseMutex() }; $mx.Dispose() }
 }
 
@@ -339,7 +344,9 @@ try {
                 $result = "ok($($found[0]))"
             } else {
                 $st['sent'] = $null   # ランプ未接続。次回また試す
-                $result = 'NG(ランプに届かない)'
+                $result = 'NG(ランプに届かない'
+                if ($script:LastLampError) { $result += ': ' + $script:LastLampError }
+                $result += ')'
             }
         }
         $sid = if ($session.Length -gt 8) { $session.Substring(0, 8) } else { $session }

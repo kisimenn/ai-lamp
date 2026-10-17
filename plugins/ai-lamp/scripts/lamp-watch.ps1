@@ -81,7 +81,8 @@ while ($true) {
             $idle = [LampWatch]::SecondsSinceInput()
             $touchedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 - $idle
             # ランプが点いた「あと」に触った、かつ、そのとき Claude の画面が前にある
-            if ($idle -ge 0 -and $touchedAt -gt $sentAt + 0.1) {
+            # 点いてから 1.5 秒は消さない（画面を触っている最中だと、緑が一瞬しか見えず「チカッと光った」ように見えるため。2026-10-17）
+            if ($idle -ge 0 -and $touchedAt -gt $sentAt + 1.5) {
                 $fg = (Get-Process -Id ([LampWatch]::ForegroundPid()) -ErrorAction SilentlyContinue).ProcessName
                 if ($Apps -contains $fg) {
                     & $LampPs1 seen   # 同じ PowerShell の中で動かす（新しく起動しないので速い）
