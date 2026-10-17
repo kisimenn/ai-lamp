@@ -77,7 +77,7 @@ PowerShell スクリプトは `powershell -NoProfile -ExecutionPolicy Bypass -Fi
   アプリ名が分からないときは、そのアプリを前に出した状態で `Get-Process` などで確かめる。
 
 ## 入れて／外して／Codex でも使いたい と言われたら
-配布リポジトリ https://github.com/kisimenn/ai-lamp の README.md に、ダウンロードから設定までの手順がある。**README の手順どおりに進める**（スクリプトを自分で書かない）。
+配布リポジトリ https://github.com/kisimenn/ai-lamp の README.md に、ダウンロードから設定までの手順がある。**README の手順どおりに進める**（スクリプトを自分で書かない）。案内は README の「案内のしかた」のとおり、見本の画像を見せてから**ひとつずつ**（返事を待って次へ）。
 ダウンロード先 `%USERPROFILE%\.cache\ai-lamp\src\ai-lamp-main` のいちばん上に、まとめて設定する `setup.ps1` と、まとめて外す `uninstall.ps1` がある。
 - 入れる: `powershell -NoProfile -ExecutionPolicy Bypass -File "<そのフォルダ>\setup.ps1"` を実行する。
   「既読で消える機能」を使いたいと言われていれば `-Watch`、やめたいなら `-NoWatch` を付ける（上の説明をしてから）。

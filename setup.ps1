@@ -136,6 +136,7 @@ $apps = @()
 if ($didClaude) { $apps += 'Claude' }
 if ($didCodex) { $apps += 'Codex' }
 if ($apps.Count -gt 0) {
+    "（AI へ）ここから先は README の 3 からのとおり、見本の画像を見せてから、ひとつずつ案内してください。下の案内を一度にまとめて伝えないでください。"
     "最後に、$($apps -join ' と ') のアプリを終了して、開き直してください。"
     if ($didClaude) {
         "  ・Claude アプリは右上の × では裏で動き続けることがあるので、左上の「≡」→「ファイル」→「終了」で終了します（画面の見本: https://raw.githubusercontent.com/kisimenn/ai-lamp/main/docs/claude-quit.png）。"

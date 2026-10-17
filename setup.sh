@@ -107,7 +107,8 @@ APPS=""
 [ $DID_CLAUDE -eq 1 ] && APPS="Claude"
 [ $DID_CODEX -eq 1 ] && APPS="${APPS:+$APPS と }Codex"
 if [ -n "$APPS" ]; then
-  echo "最後に、$APPS のアプリを終了して、開き直してください（Command + Q で終了できます）。"
+  echo "（AI へ）ここから先は README の 3 からのとおり、ひとつずつ案内してください。下の案内を一度にまとめて伝えないでください。"
+  echo "最後に、$APPS のアプリを終了して、開き直してください（command キーを押したまま Q を押すと終了できます）。"
   if [ $DID_CODEX -eq 1 ]; then
     echo "  ・開き直したら、まだ承認していなければランプのフックを承認します（承認済みなら不要）。"
   fi
