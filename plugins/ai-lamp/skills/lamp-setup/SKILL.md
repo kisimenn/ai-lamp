@@ -68,11 +68,12 @@ PowerShell スクリプトは `powershell -NoProfile -ExecutionPolicy Bypass -Fi
 ## 既読で消える機能（任意）
 緑・橙が点いたあとに、AI のアプリ（Claude・Codex）を前に出してマウスかキーボードを触ると消える機能（Windows のみ）。目の動きは見ない。作業中の青はこの機能では消えない。
 - オンにする前に必ず説明する: 「どのアプリが前にあるか」と「最後に触った時刻」だけを見る。押したキーの中身は見ない・記録しない。パソコン起動時に自動で動く。
-- ユーザーが同意したら `watch-install.ps1` を実行する。やめたいときは `watch-uninstall.ps1`。
+- ユーザーが同意したら `watch-install.ps1 -Seen on` を実行する。やめたいときは `watch-install.ps1 -Seen off`（常駐の係は残して、既読で消える機能だけ止める。係は合図をすぐランプに送る仕事もしているので、止めると光るのが遅くなる）。ランプの設定を全部外すときだけ `watch-uninstall.ps1`。
+- 常駐の係（v0.8〜）: `%USERPROFILE%\.cache\ai-lamp\watch\lamp-watch.ps1` がパソコン起動時から動き、合図係（Codex のフックが呼ぶ `bin\lamp-hook.exe`）が受付箱 `queue` に置いた合図をすぐランプに送る。events.log の `via=queue` はこの道、`via=direct` は PowerShell を毎回起動する道（遅い）
 - Claude のデスクトップアプリ以外（VS Code やターミナル）で Claude Code を使っている場合は、
   `%USERPROFILE%\.cache\ai-lamp\watch-apps.txt` に、対象アプリの名前を1行に1つ書く（.exe なし）。
   例: `Code`（VS Code）/ `WindowsTerminal`。最初から `claude`・`ChatGPT`（Codex アプリの中身の名前）・`Codex` は対象なので、書くのはそれ以外だけ。
-  書いたあと `watch-uninstall.ps1` → `watch-install.ps1` の順に実行して見張りを起動し直す。
+  書いたあと `watch-install.ps1 -Seen keep` を実行して係を起動し直す。
   アプリ名が分からないときは、そのアプリを前に出した状態で `Get-Process` などで確かめる。
 
 ## 入れて／外して／Codex でも使いたい と言われたら

@@ -17,6 +17,23 @@ $bin = Join-Path $env:USERPROFILE '.cache\ai-lamp\bin'
 Copy-Item -Force (Join-Path $PSScriptRoot 'lamp.ps1') $bin
 $lamp = Join-Path $bin 'lamp.ps1'
 
+# v0.8: 速くするための合図係（lamp-hook.exe）を、Windows に最初から入っている C# の道具でこのパソコンの中で作る。
+#   フックは lamp-hook.cmd を呼び、合図係が受付箱に合図を置くだけですぐ終わる（PowerShell を毎回起動しない）。
+#   作れなかったとき・場所に空白があるときは、今までどおり PowerShell で lamp.ps1 を呼ぶ
+$hookCmd = $null
+try {
+    Copy-Item -Force (Join-Path $PSScriptRoot 'lamp-hook.cmd') $bin
+    $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+    if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
+    $exe = Join-Path $bin 'lamp-hook.exe'
+    if (Test-Path $csc) {
+        $ErrorActionPreference = 'Continue'
+        $out = & $csc /nologo /target:exe /optimize+ "/out:$exe" (Join-Path $PSScriptRoot 'lamp-hook.cs') 2>&1 | Out-String
+        $ErrorActionPreference = 'Stop'
+    }
+    if ((Test-Path $exe) -and ($bin -notmatch '\s')) { $hookCmd = Join-Path $bin 'lamp-hook.cmd' }
+} catch { $ErrorActionPreference = 'Stop' }
+
 $codexDir = Join-Path $env:USERPROFILE '.codex'
 [void](New-Item -ItemType Directory -Force -Path $codexDir)
 $hooksFile = Join-Path $codexDir 'hooks.json'
@@ -33,7 +50,7 @@ $hooks = $doc['hooks']
 function New-LampGroup($state, $timeout) {
     @{ hooks = @(@{
         type    = 'command'
-        command = "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$lamp`" $state"
+        command = $(if ($hookCmd) { "$hookCmd $state" } else { "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$lamp`" $state" })
         async   = $true
         timeout = $timeout
     }) }
@@ -60,4 +77,5 @@ foreach ($ev in $plan.Keys) {
 
 [System.IO.File]::WriteAllText($hooksFile, $json.Serialize($doc), $utf8)
 "Codex 用のランプのフックを入れました: $hooksFile"
-"次に、ランプのフックを承認してください。Codex アプリは、入力欄の下に出る、黄色い点付きのフックのアイコン →「フックの確認」で、lamp.ps1 と書かれたランプ用のフックを許可します（全部ランプ用なら「すべて許可」、ほかのフックもあればランプ用だけ選んで「選択した項目を許可」）。これで完了で、設定画面でもう一度同じ操作をする必要はありません。アイコンが無いときは承認済みのこともあるので 設定 → Hooks で確かめます。ターミナルの Codex は /hooks。承認したら新しい会話から光ります。"
+"  呼び方: $(if ($hookCmd) { '速い合図係（lamp-hook）' } else { 'PowerShell（lamp.ps1）' })"
+"次に、ランプのフックを承認してください。Codex アプリは、入力欄の下に出る、黄色い点付きのフックのアイコン →「フックの確認」で、lamp-hook または lamp.ps1 と書かれたランプ用のフックを許可します（全部ランプ用なら「すべて許可」、ほかのフックもあればランプ用だけ選んで「選択した項目を許可」）。これで完了で、設定画面でもう一度同じ操作をする必要はありません。アイコンが無いときは承認済みのこともあるので 設定 → Hooks で確かめます。ターミナルの Codex は /hooks。承認したら新しい会話から光ります。"

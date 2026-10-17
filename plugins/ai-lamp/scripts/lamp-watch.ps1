@@ -1,4 +1,4 @@
-﻿# AI通知ランプ 画面の見張り（Windows / PowerShell 版）v0.1 ・任意機能
+﻿# AI通知ランプ 常駐の係（Windows / PowerShell 版）: 画面の見張り（既読で消える機能）と、受付箱の合図の送信（v0.8）
 #
 # ランプが「完了 / 質問待ち / エラー」を表示したあとに、
 # Claude の画面がいちばん前にある状態でマウスかキーボードを触ったら、ランプを消す。
@@ -26,6 +26,10 @@ if (Test-Path $appsFile) {
 }
 $NoticeStates = 'done', 'ask', 'error'    # 消す対象（作業中は消さない）
 $LampPs1 = Join-Path $PSScriptRoot 'lamp.ps1'
+# v0.8: 受付箱（合図係 lamp-hook.exe が合図を置く）。ここを 0.1 秒ごとに見て、すぐランプに送る
+$queueDir = Join-Path $dir 'queue'
+# 既読で消える機能を使わない人は、このファイルがある（受付箱の仕事だけする）
+$seenOffFile = Join-Path $dir 'seen-off'
 
 # 二重に動かない
 $mutex = New-Object System.Threading.Mutex($false, 'Local\ai-lamp-watch')
@@ -68,6 +72,20 @@ $lastErr = ''
 $lastTick = Get-Date
 try {
 while ($true) {
+    # 受付箱の合図を、届いた順に送る（書きかけの .tmp は読まない。5 分より古いものは捨てる）
+    try {
+        if (Test-Path $queueDir) {
+            foreach ($f in @(Get-ChildItem $queueDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
+                try {
+                    $parts = $f.BaseName -split '[-.]'
+                    $ticks = [long]$parts[0]; $qKind = $parts[-1]
+                    $text = [System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
+                    Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue
+                    if (([DateTime]::UtcNow.Ticks - $ticks) / 10000000 -lt 300) { & $LampPs1 $qKind -InputJson $text -QueuedTicks $ticks }
+                } catch { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue }
+            }
+        }
+    } catch { }
     try {
         $st = $null
         if (Test-Path $stateFile) { $st = $json.DeserializeObject([System.IO.File]::ReadAllText($stateFile)) }
@@ -76,7 +94,7 @@ while ($true) {
             $lastTick = Get-Date
             & $LampPs1 tick   # 同じ PowerShell の中で動かす（新しく起動しないので速い）
         }
-        if ($st -and $st.ContainsKey('sent') -and ($NoticeStates -contains $st['sent'])) {
+        if ($st -and $st.ContainsKey('sent') -and ($NoticeStates -contains $st['sent']) -and -not (Test-Path $seenOffFile)) {
             $sentAt = if ($st.ContainsKey('sent_at') -and $st['sent_at']) { [double]$st['sent_at'] } else { 0 }
             $idle = [LampWatch]::SecondsSinceInput()
             $touchedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 - $idle
@@ -97,7 +115,7 @@ while ($true) {
         if ($Show) { "エラー: $_" }   # 見張りは止まらないようにする
         if ("$_" -ne $lastErr) { Write-WatchLog "エラー: $_"; $lastErr = "$_" }   # 同じエラーは1回だけ記録
     }
-    Start-Sleep -Milliseconds 200
+    Start-Sleep -Milliseconds 100
 }
 } finally {
     Write-WatchLog "終了 PID=$PID"

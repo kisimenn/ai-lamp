@@ -9,7 +9,8 @@
 #
 # 複数セッションを同時に動かしたとき、いちばん優先度の高い状態を表示する（ask > error > work > done > off）。
 # 状態が変わったときだけランプに送る。失敗しても必ず exit 0（Claude Code の作業を止めない）。
-param([string]$Kind)
+# InputJson / QueuedTicks: 常駐の係（lamp-watch.ps1）が受付箱の合図を渡すとき用（標準入力の代わり。v0.8）
+param([string]$Kind, $InputJson = $null, [long]$QueuedTicks = 0)   # InputJson は型を付けない（[string] だと $null が空文字になり、標準入力を読まなくなるため）
 
 $ErrorActionPreference = 'Stop'
 $Priority = @{ ask = 4; error = 3; work = 2; done = 1; off = 0 }
@@ -190,6 +191,9 @@ try {
     $bootMs = -1
     # 見張り（seen/tick）は同じ PowerShell の中から呼ばれるので、起動時間は測らない（意味のない大きな数になるため）
     if ($Kind -ne 'seen' -and $Kind -ne 'tick') { try { $bootMs = [int]((Get-Date) - (Get-Process -Id $PID).StartTime).TotalMilliseconds } catch { } }
+    # 受付箱から来た合図は、合図係が置いてから今までの時間を測る（PowerShell は起動していないので）
+    $via = 'direct'
+    if ($QueuedTicks -gt 0) { $via = 'queue'; $bootMs = [int](([DateTime]::UtcNow.Ticks - $QueuedTicks) / 10000) }
     if (@('work', 'done', 'ask', 'error', 'end', 'seen', 'tick') -notcontains $Kind) {
         [Console]::Error.WriteLine('usage: lamp.ps1 <work|done|ask|error|end|seen|tick>')
         exit 0
@@ -200,10 +204,14 @@ try {
 
     # フックの JSON からセッション番号だけ取り出す（バイトで受けて UTF-8 として読む）
     $session = 'default'
-    if ($Kind -ne 'seen' -and $Kind -ne 'tick' -and [Console]::IsInputRedirected) {
+    $raw = $null
+    if ($null -ne $InputJson) { $raw = $InputJson }
+    elseif ($Kind -ne 'seen' -and $Kind -ne 'tick' -and [Console]::IsInputRedirected) {
         $ms = New-Object System.IO.MemoryStream
         [Console]::OpenStandardInput().CopyTo($ms)
         $raw = [System.Text.Encoding]::UTF8.GetString($ms.ToArray())
+    }
+    if ($raw) {
         $m = [regex]::Match($raw, '"session_id"\s*:\s*"([^"]+)"')
         if ($m.Success) { $session = $m.Groups[1].Value }
         $m = [regex]::Match($raw, '"hook_event_name"\s*:\s*"([^"]+)"')
@@ -350,7 +358,7 @@ try {
             }
         }
         $sid = if ($session.Length -gt 8) { $session.Substring(0, 8) } else { $session }
-        Write-Event ("{0} event={1} session={2} target={3} send={4} {5}ms boot={6}ms" -f $Kind, $hookEvent, $sid, $target, $result, [int](([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 - $now) * 1000), $bootMs)
+        Write-Event ("{0} event={1} session={2} target={3} send={4} {5}ms boot={6}ms via={7}" -f $Kind, $hookEvent, $sid, $target, $result, [int](([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 - $now) * 1000), $bootMs, $via)
 
         $tmp = "$stateFile.tmp"
         [System.IO.File]::WriteAllText($tmp, $json.Serialize($st), $utf8)

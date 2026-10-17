@@ -87,29 +87,33 @@ if (-not $NoCodex -and (Test-Path (Join-Path $env:USERPROFILE '.codex'))) {
     if (-not $r.ok -or $count -lt 6) {
         $results += "NG Codex 用のフックを入れられませんでした（ランプ用のフック $count / 6 件）:`n$($r.text)"
     } else {
-    $results += "OK Codex 用のフックを入れました（ランプのフックを承認してください。Codex アプリは、入力欄の下に出る、黄色い点付きのフックのアイコン →「フックの確認」で、lamp.ps1 と書かれたランプ用のフックを許可（全部ランプ用なら「すべて許可」、ほかのフックもあればランプ用だけ選んで「選択した項目を許可」）。これで完了で、設定画面でもう一度同じ操作をする必要はありません。アイコンが無いときは承認済みのこともあるので 設定 → Hooks で確かめます。ターミナルの Codex は /hooks）"
+    $results += "OK Codex 用のフックを入れました（ランプのフックを承認してください。Codex アプリは、入力欄の下に出る、黄色い点付きのフックのアイコン →「フックの確認」で、lamp-hook または lamp.ps1 と書かれたランプ用のフックを許可（全部ランプ用なら「すべて許可」、ほかのフックもあればランプ用だけ選んで「選択した項目を許可」）。これで完了で、設定画面でもう一度同じ操作をする必要はありません。アイコンが無いときは承認済みのこともあるので 設定 → Hooks で確かめます。ターミナルの Codex は /hooks）"
         $didCodex = $true
     }
 } elseif (-not $NoCodex) {
     $results += "-- Codex は入っていないようなので、Codex 用の設定は飛ばしました"
 }
 
-# 4. 既読で消える機能
-if ($Watch) {
-    $r = Invoke-Step (Join-Path $scripts 'watch-install.ps1') '画面の見張りを有効にしました'
-    # 見張りが本当に動き始めたか（見張りの目印があるか）を少し待って確かめる
-    $running = $false
-    for ($i = 0; $i -lt 10 -and -not $running; $i++) {
-        Start-Sleep -Milliseconds 500
-        $m = $null
-        if ([System.Threading.Mutex]::TryOpenExisting('Local\ai-lamp-watch', [ref]$m)) { $m.Dispose(); $running = $true }
-    }
-    if ($r.ok -and $running) { $results += "OK 既読で消える機能をオンにしました（パソコン起動時に自動で動きます）" }
-    else { $results += "NG 既読で消える機能を始められませんでした（見張りが動いていません）:`n$($r.text)" }
-} elseif ($NoWatch) {
-    $r = Invoke-Step (Join-Path $scripts 'watch-uninstall.ps1') '無効にしました'
-    if ($r.ok) { $results += "OK 既読で消える機能をオフにしました" } else { $results += "NG 既読で消える機能を止められませんでした:`n$($r.text)" }
+# 4. 常駐の係（v0.8）と既読で消える機能
+#    常駐の係は、合図をすぐランプに送るためにいつも入れる（重いパソコンでも速く光るように）。
+#    既読で消える機能は -Watch でオン、-NoWatch でオフ（どちらも無ければ今のまま。初めてならオフ）
+$seen = if ($Watch) { 'on' } elseif ($NoWatch) { 'off' } else { 'keep' }
+$ErrorActionPreference = 'Continue'
+$out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scripts 'watch-install.ps1') -Seen $seen 2>&1 | Out-String
+$ok = ($LASTEXITCODE -eq 0 -and $out -match '常駐の係を入れました')
+$ErrorActionPreference = 'Stop'
+# 係が本当に動き始めたか（係の目印があるか）を少し待って確かめる
+$running = $false
+for ($i = 0; $i -lt 10 -and -not $running; $i++) {
+    Start-Sleep -Milliseconds 500
+    $m = $null
+    if ([System.Threading.Mutex]::TryOpenExisting('Local\ai-lamp-watch', [ref]$m)) { $m.Dispose(); $running = $true }
 }
+$seenOn = -not (Test-Path (Join-Path $env:USERPROFILE '.cache\ai-lamp\seen-off'))
+if ($ok -and $running) {
+    $results += "OK 常駐の係を入れました（合図をすぐランプに送ります。パソコン起動時に自動で動きます）"
+    $results += $(if ($seenOn) { "OK 既読で消える機能はオンです" } else { "-- 既読で消える機能はオフです" })
+} else { $results += "NG 常駐の係を始められませんでした（ランプは光りますが、少し遅くなります）:`n$out" }
 
 # 5. ランプがつながっているか確かめて、緑に 2 秒光らせる（AI もお客さんも、結果をそのまま見ればよい）
 $test = Join-Path $scripts 'lamp-test.ps1'

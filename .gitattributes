@@ -2,3 +2,4 @@
 *.sh text eol=lf
 *.pl text eol=lf
 *.png binary
+*.cmd text eol=crlf
