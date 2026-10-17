@@ -52,6 +52,12 @@ Remove-Item -Recurse -Force $market -ErrorAction SilentlyContinue
 Copy-Item -Recurse -Force (Join-Path $here 'plugins') $market
 Copy-Item -Recurse -Force (Join-Path $here '.claude-plugin') $market
 $results += "OK プラグイン一式をコピーしました: $market"
+# 1.5 合図係（lamp-hook.exe）を作る（v0.8.1）。Claude Code・Codex のフックが使い、PowerShell を毎回起動しないので速く光る
+$ErrorActionPreference = 'Continue'
+$bout = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scripts 'build-hook.ps1') 2>&1 | Out-String
+$ErrorActionPreference = 'Stop'
+if ($bout -match '合図係を作りました') { $results += 'OK 合図係を作りました（重いパソコンでも速く光ります）' }
+else { $results += "-- 合図係を作れなかったので、今までどおりの方法で光らせます（少し遅くなることがあります）" }
 
 # 2. Claude Code にプラグインを入れる（いったん外して入れ直す＝何度実行しても同じ）
 $claude = Find-Claude

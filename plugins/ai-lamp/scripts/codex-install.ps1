@@ -17,22 +17,13 @@ $bin = Join-Path $env:USERPROFILE '.cache\ai-lamp\bin'
 Copy-Item -Force (Join-Path $PSScriptRoot 'lamp.ps1') $bin
 $lamp = Join-Path $bin 'lamp.ps1'
 
-# v0.8: 速くするための合図係（lamp-hook.exe）を、Windows に最初から入っている C# の道具でこのパソコンの中で作る。
-#   フックは lamp-hook.cmd を呼び、合図係が受付箱に合図を置くだけですぐ終わる（PowerShell を毎回起動しない）。
+# v0.8: 速くするための合図係（lamp-hook.exe）を作る（build-hook.ps1）。フックは lamp-hook.cmd を呼ぶ。
 #   作れなかったとき・場所に空白があるときは、今までどおり PowerShell で lamp.ps1 を呼ぶ
 $hookCmd = $null
 try {
-    Copy-Item -Force (Join-Path $PSScriptRoot 'lamp-hook.cmd') $bin
-    $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-    if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
-    $exe = Join-Path $bin 'lamp-hook.exe'
-    if (Test-Path $csc) {
-        $ErrorActionPreference = 'Continue'
-        $out = & $csc /nologo /target:exe /optimize+ "/out:$exe" (Join-Path $PSScriptRoot 'lamp-hook.cs') 2>&1 | Out-String
-        $ErrorActionPreference = 'Stop'
-    }
-    if ((Test-Path $exe) -and ($bin -notmatch '\s')) { $hookCmd = Join-Path $bin 'lamp-hook.cmd' }
-} catch { $ErrorActionPreference = 'Stop' }
+    [void](& (Join-Path $PSScriptRoot 'build-hook.ps1'))
+    if ((Test-Path (Join-Path $bin 'lamp-hook.exe')) -and ($bin -notmatch '\s')) { $hookCmd = Join-Path $bin 'lamp-hook.cmd' }
+} catch { }
 
 $codexDir = Join-Path $env:USERPROFILE '.codex'
 [void](New-Item -ItemType Directory -Force -Path $codexDir)

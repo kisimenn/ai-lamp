@@ -5,14 +5,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "work"
             ],
             "async": true
@@ -25,14 +22,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "work"
             ],
             "async": true
@@ -46,14 +40,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "ask"
             ],
             "async": true
@@ -65,14 +56,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "done"
             ],
             "async": true
@@ -85,14 +73,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "done"
             ],
             "async": true
@@ -105,14 +90,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "ask"
             ],
             "async": true
@@ -125,14 +107,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell",
+            "command": "cmd",
             "args": [
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp.ps1",
+              "/d",
+              "/c",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/lamp-hook.cmd",
               "end"
             ],
             "async": true
