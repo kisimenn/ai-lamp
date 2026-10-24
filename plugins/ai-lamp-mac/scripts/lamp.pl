@@ -366,8 +366,12 @@ sub lamp_test {
     my $port = find_lamp(undef);
     unless (defined $port) {
         my @c = glob('/dev/cu.usbmodem*');
-        if (@c) { print "NG USB の機器（" . join(', ', @c) . "）はありますが、ランプの返事がありませんでした。ランプを挿し直してから、もう一度 setup.sh を実行してください。\n"; }
-        else    { print "NG ランプが見つかりませんでした。USB に挿さっているか（挿すと虹色が流れるか）確かめてください。設定そのものは済んでいるので、挿せばそのまま使えます。\n"; }
+        # 通信の口が無いときは、USB の機器の一覧（ioreg）に「AI Lamp」がいるかで、ケーブルの問題か通信の口の問題かを分ける
+        my $usb = 0;
+        if (open(my $io, '-|', '/usr/sbin/ioreg', '-p', 'IOUSB', '-w0')) { while (<$io>) { $usb = 1 if /AI Lamp/; } close $io; }
+        if (@c)      { print "NG USB の機器（" . join(', ', @c) . "）はありますが、ランプの返事がありませんでした。ランプを挿し直してから、もう一度 setup.sh を実行してください。\n"; }
+        elsif ($usb) { print "NG ランプは USB の機器としては見えていますが、通信の口（/dev/cu.usbmodem…）ができていません。ランプを抜いて 5 秒待ってから挿し直し、『アクセサリの接続を許可しますか？』と出たら『許可』を押して、もう一度確かめてください。設定そのものは済んでいます。\n"; }
+        else         { print "NG ランプが USB の機器として見えません。挿すと虹色に光っても、充電専用のケーブルや変換アダプタでは通信できません。ケーブルを使っている場合はデータ通信できるものに替えるか、別の USB の口で試してください。設定そのものは済んでいるので、つながればそのまま使えます。\n"; }
         return;
     }
     invoke_lamp($port, 'S done', 'OK');

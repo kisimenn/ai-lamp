@@ -52,7 +52,7 @@ $d = Join-Path $env:USERPROFILE '.cache\ai-lamp\src'; Remove-Item -Recurse -Forc
 ## 1. ダウンロード（Mac）
 ターミナルで、次をそのまま実行する（`~/.cache/ai-lamp/src` に置く）。
 ```bash
-d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/repo.zip" https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip && unzip -q -o "$d/repo.zip" -d "$d" && ls -d "$d"/*/
+d="$HOME/.cache/ai-lamp/src"; rm -rf "$d"; mkdir -p "$d" && curl -fsSL -o "$d/repo.zip" https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip && ditto -x -k "$d/repo.zip" "$d" && ls -d "$d"/*/
 ```
 最後に表示されたフォルダ（`.../ai-lamp-main/`）を、次の手順で使う。
 
@@ -174,6 +174,7 @@ Codex は、ランプ用のフックを1回承認しないと光らない（承�
 **③ ランプの確認**
 1. 「ランプを USB から抜いて、挿し直してください。**虹色**に光りましたか？」と聞く。
 2. 虹色に光らない、または「見つかりました」と出たのに緑に光らない → **別の USB の口に挿してもらう**（口によって光らないことがある）。USB ハブを使っていれば外して、パソコンに直接挿してもらう。そのあと、この下の 3 のランプの確認をやり直す。
+   - 虹色は「電気が届いた」しるしで、「パソコンと通信できる」しるしではない。ケーブルや変換アダプタを使っている場合、**充電専用のケーブルだと虹色に光っても通信できない**。ランプの確認で「USB の機器として見えません」と出たら、データ通信できるケーブルに替えるか、パソコンに直接挿してもらう。
 3. 虹色に光った → （Mac のときは）「挿したときに『アクセサリの接続を許可しますか？』と出ましたか？『許可しない』を押していたら、もう一度挿し直して『許可』を押してください」と聞く。そのうえで、ランプの確認だけをやり直す（「緑に 2 秒光ります。ランプを見ていてください」と予告してから）:
    - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "<1のフォルダ>\plugins\ai-lamp\scripts\lamp-test.ps1"`
    - Mac: `/usr/bin/perl "<1のフォルダ>/plugins/ai-lamp-mac/scripts/lamp.pl" test`
