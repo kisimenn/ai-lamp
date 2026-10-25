@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# AI通知ランプ 送信スクリプト（Mac 版）v0.8.2
+# AI通知ランプ 送信スクリプト（Mac 版）v0.8.5
 # Windows 版（lamp.ps1）と同じ動き。Mac に最初から入っている Perl だけで動く（ほかのソフトは不要）。
 #
 #   使い方: lamp.pl <work|done|ask|error|end|seen|tick|test>
@@ -211,11 +211,12 @@ sub test_interrupted {
 
 # ---------- メイン ----------
 sub main {
-    unless (grep { $_ eq $Kind } qw(work done ask error end seen tick test)) {
-        print STDERR "usage: lamp.pl <work|done|ask|error|end|seen|tick|test>\n";
+    unless (grep { $_ eq $Kind } qw(work done ask error end seen tick test diag)) {
+        print STDERR "usage: lamp.pl <work|done|ask|error|end|seen|tick|test|diag>\n";
         return;
     }
     if ($Kind eq 'test') { lamp_test(); return; }
+    if ($Kind eq 'diag') { lamp_diag(); return; }
     # 色は3つ。エラーは「あなたの出番」として橙（ask）にまとめる
     $Kind = 'ask' if $Kind eq 'error';
 
@@ -359,6 +360,66 @@ sub write_event {
     };
 }
 
+# ---------- Mac の機器の一覧（ioreg）で、ランプがどこまでつながっているか ----------
+#   lamp: Mac が「AI Lamp」を見つけた / acm, data: 通信の係（AppleUSBACMControl / AppleUSBACMData）が付いた
+#   bsd: 通信の口（IOSerialBSDClient → /dev/cu.*）ができた / boot: ランプが書き込み待ち（CH55x の書き込み用の名前 4348:55e0 / 1a86:55e0）
+#   試験用: AI_LAMP_FAKE_IOREG（ioreg -p IOService -w0 の代わりに読むファイル）、AI_LAMP_FAKE_IOUSB（ioreg -p IOUSB -l -w0 の代わり）
+sub usb_report {
+    my %r = (lamp => 0, acm => 0, data => 0, bsd => 0, boot => 0, tree => []);
+    my $io;
+    if ($ENV{AI_LAMP_FAKE_IOREG}) { open($io, '<', $ENV{AI_LAMP_FAKE_IOREG}) or undef $io; }
+    else { open($io, '-|', '/usr/sbin/ioreg', '-p', 'IOService', '-w0') or undef $io; }
+    if ($io) {
+        my $in = -1;   # 「AI Lamp」の行の深さ（その下の行だけ拾う）
+        while (my $l = <$io>) {
+            next unless $l =~ /^(.*?)\+-o (.+?)\s*$/;
+            my ($depth, $node) = (length($1), $2);
+            $in = -1 if $in >= 0 && $depth <= $in;
+            if ($in < 0 && $node =~ /^AI Lamp(@|\s|$)/) { $in = $depth; $r{lamp}++; }
+            next if $in < 0;
+            my $short = $node;
+            $short =~ s/\s*<class ([\w.]+).*$/ ($1)/;
+            push @{ $r{tree} }, ('  ' x int(($depth - $in) / 2)) . $short;
+            # 係の名前は macOS の版で変わることがあるので、広めに見る（名前そのものは tree に残る）
+            $r{acm}  = 1 if $node =~ /ACMControl|CDCControl|USBSerial/i;
+            $r{data} = 1 if $node =~ /ACMData|CDCData|USBSerial/i;
+            $r{bsd}  = 1 if $node =~ /IOSerialBSDClient/;
+        }
+        close $io;
+    }
+    my $iu;
+    if ($ENV{AI_LAMP_FAKE_IOUSB}) { open($iu, '<', $ENV{AI_LAMP_FAKE_IOUSB}) or undef $iu; }
+    else { open($iu, '-|', '/usr/sbin/ioreg', '-p', 'IOUSB', '-l', '-w0') or undef $iu; }
+    if ($iu) {
+        my $vid = -1;
+        while (my $l = <$iu>) {
+            $vid = $1 if $l =~ /"idVendor" = (\d+)/;
+            $r{boot} = 1 if $l =~ /"idProduct" = 21984\b/ && ($vid == 17224 || $vid == 6790);
+        }
+        close $iu;
+    }
+    return \%r;
+}
+
+# ---------- 原因を調べる（光らないときに AI が実行する。会話の中身やほかの機器の名前は出さない） ----------
+sub lamp_diag {
+    my @c = glob('/dev/cu.usbmodem*');
+    my $r = usb_report();
+    my $os = `/usr/bin/sw_vers -productVersion 2>/dev/null`; chomp $os;
+    my $hw = `/usr/sbin/sysctl -n hw.model 2>/dev/null`; chomp $hw;
+    print "=== AI通知ランプの調べ（lamp.pl diag）===\n";
+    print "macOS $os / $hw\n";
+    print "Mac がランプを見つけた: " . ($r->{lamp} ? "はい" : "いいえ") . "\n";
+    print "通信の係（ACM）: " . ($r->{acm} ? "付いた" : "付いていない") . " / データの係: " . ($r->{data} ? "付いた" : "付いていない") . "\n";
+    print "通信の口: " . (@c ? join(', ', @c) : ($r->{bsd} ? "係はできたが /dev/cu.usbmodem* が無い" : "無い")) . "\n";
+    print "書き込み待ちの状態: " . ($r->{boot} ? "はい（抜いて挿し直す）" : "いいえ") . "\n";
+    my $port = @c ? find_lamp(undef) : undef;
+    print "ランプの返事: " . (defined $port ? "あり（$port）" : (@c ? "無し" : "（口が無いので試していない）")) . "\n";
+    print "--- ランプの下の様子（ioreg）---\n";
+    print "$_\n" for (@{ $r->{tree} } ? @{ $r->{tree} } : ('（AI Lamp が一覧にありません）'));
+    print "（AI へ）この結果をそのままお客さんに見せ、うまくいかないときは「この結果を、リベシティのメッセージで送ってください」と伝える。\n";
+}
+
 # ---------- ランプの確認（setup.sh の最後） ----------
 sub lamp_test {
     my $home = $ENV{HOME} || (getpwuid($<))[7];
@@ -366,12 +427,14 @@ sub lamp_test {
     my $port = find_lamp(undef);
     unless (defined $port) {
         my @c = glob('/dev/cu.usbmodem*');
-        # 通信の口が無いときは、USB の機器の一覧（ioreg）に「AI Lamp」がいるかで、ケーブルの問題か通信の口の問題かを分ける
-        my $usb = 0;
-        if (open(my $io, '-|', '/usr/sbin/ioreg', '-p', 'IOUSB', '-w0')) { while (<$io>) { $usb = 1 if /AI Lamp/; } close $io; }
-        if (@c)      { print "NG USB の機器（" . join(', ', @c) . "）はありますが、ランプの返事がありませんでした。ランプを挿し直してから、もう一度 setup.sh を実行してください。\n"; }
-        elsif ($usb) { print "NG ランプは USB の機器としては見えていますが、通信の口（/dev/cu.usbmodem…）ができていません。ランプを抜いて 5 秒待ってから挿し直し、『アクセサリの接続を許可しますか？』と出たら『許可』を押して、もう一度確かめてください。設定そのものは済んでいます。\n"; }
-        else         { print "NG ランプが USB の機器として見えません。挿すと虹色に光っても、充電専用のケーブルや変換アダプタでは通信できません。ケーブルを使っている場合はデータ通信できるものに替えるか、別の USB の口で試してください。設定そのものは済んでいるので、つながればそのまま使えます。\n"; }
+        # 通信の口が無いときは、Mac の機器の一覧（ioreg）で、どこまで進んでいるかを見て分ける
+        my $r = usb_report();
+        if (@c)            { print "NG USB の機器（" . join(', ', @c) . "）はありますが、ランプの返事がありませんでした。ランプを挿し直してから、もう一度 setup.sh を実行してください。\n"; }
+        elsif ($r->{boot}) { print "NG ランプが「書き込みを待つ状態」になっています（ふだんの光り方をしません）。ランプを抜いて 5 秒待ってから挿し直し、もう一度確かめてください。\n"; }
+        elsif ($r->{lamp} && !$r->{acm}) { print "NG Mac はランプを見つけていますが、通信の係（ドライバー）がまだ付いていません。Mac がランプとの通信を許可していないことがあります。ランプを抜いて 5 秒待ってから挿し直し、『アクセサリの接続を許可しますか？』と出たら『許可』を押して、もう一度確かめてください。設定そのものは済んでいます。\n"; }
+        elsif ($r->{lamp}) { print "NG Mac はランプを見つけて通信の係も付いていますが、通信の口（/dev/cu.usbmodem…）ができていません。ランプを挿し直して、もう一度確かめてください。\n"; }
+        else               { print "NG ランプが USB の機器として見えません。挿すと虹色に光っても、充電専用のケーブルや変換アダプタでは通信できません。パソコンに直接挿すか、別の USB の口で試してください。設定そのものは済んでいるので、つながればそのまま使えます。\n"; }
+        print "（AI へ）原因をくわしく調べるときは: /usr/bin/perl \"$0\" diag\n";
         return;
     }
     invoke_lamp($port, 'S done', 'OK');
