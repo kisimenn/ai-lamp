@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# AI通知ランプ 送信スクリプト（Mac 版）v0.8.5
+# AI通知ランプ 送信スクリプト（Mac 版）v0.8.6
 # Windows 版（lamp.ps1）と同じ動き。Mac に最初から入っている Perl だけで動く（ほかのソフトは不要）。
 #
 #   使い方: lamp.pl <work|done|ask|error|end|seen|tick|test>
@@ -401,6 +401,22 @@ sub usb_report {
     return \%r;
 }
 
+# ---------- この Mac について（アクセサリの許可がある Apple シリコンか／会社などの管理下か） ----------
+#   試験用: AI_LAMP_FAKE_MACINFO（"arm" や "arm,managed" のように書く）
+sub mac_info {
+    my %m = (arm => 0, managed => 0);
+    if (defined $ENV{AI_LAMP_FAKE_MACINFO}) {
+        $m{arm} = 1 if $ENV{AI_LAMP_FAKE_MACINFO} =~ /arm/;
+        $m{managed} = 1 if $ENV{AI_LAMP_FAKE_MACINFO} =~ /managed/;
+        return \%m;
+    }
+    my $a = `/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null`;
+    $m{arm} = 1 if defined $a && $a =~ /^\s*1/;
+    my $p = `/usr/bin/profiles status -type enrollment 2>/dev/null`;
+    $m{managed} = 1 if defined $p && $p =~ /MDM enrollment:\s*Yes/i;
+    return \%m;
+}
+
 # ---------- 原因を調べる（光らないときに AI が実行する。会話の中身やほかの機器の名前は出さない） ----------
 sub lamp_diag {
     my @c = glob('/dev/cu.usbmodem*');
@@ -417,6 +433,23 @@ sub lamp_diag {
     print "ランプの返事: " . (defined $port ? "あり（$port）" : (@c ? "無し" : "（口が無いので試していない）")) . "\n";
     print "--- ランプの下の様子（ioreg）---\n";
     print "$_\n" for (@{ $r->{tree} } ? @{ $r->{tree} } : ('（AI Lamp が一覧にありません）'));
+    # 会社などが管理している Mac は、USB の機器を黙って止める決まりが入っていることがある
+    print "--- この Mac の管理（profiles）---\n";
+    my @mdm = grep { /Enrolled|MDM/i } `/usr/bin/profiles status -type enrollment 2>&1`;
+    print @mdm ? @mdm : "（調べられませんでした）\n";
+    # USB とアクセサリの許可まわりの記録（直近 3 分。失敗・拒否などの行だけ。ランプを挿し直してすぐ実行すると残る）
+    print "--- USB の記録（直近 3 分、失敗・拒否などの行だけ）---\n";
+    my @log;
+    if (open(my $lg, '-|', '/usr/bin/log', 'show', '--last', '3m', '--style', 'compact', '--predicate',
+             'subsystem BEGINSWITH "com.apple.iokit.IOUSB" OR eventMessage CONTAINS[c] "usb" OR eventMessage CONTAINS[c] "accessor"')) {
+        while (my $l = <$lg>) {
+            next unless $l =~ /fail|error|enumerat|accessor|denied|disallow|restrict|block|1209|c550|AI Lamp|over.?current/i;
+            chomp $l; push @log, substr($l, 0, 220);
+        }
+        close $lg;
+    }
+    @log = @log[-15 .. -1] if @log > 15;
+    print @log ? join("\n", @log) . "\n" : "（該当する記録はありません）\n";
     print "（AI へ）この結果をそのままお客さんに見せ、うまくいかないときは「この結果を、リベシティのメッセージで送ってください」と伝える。\n";
 }
 
@@ -433,7 +466,24 @@ sub lamp_test {
         elsif ($r->{boot}) { print "NG ランプが「書き込みを待つ状態」になっています（ふだんの光り方をしません）。ランプを抜いて 5 秒待ってから挿し直し、もう一度確かめてください。\n"; }
         elsif ($r->{lamp} && !$r->{acm}) { print "NG Mac はランプを見つけていますが、通信の係（ドライバー）がまだ付いていません。Mac がランプとの通信を許可していないことがあります。ランプを抜いて 5 秒待ってから挿し直し、『アクセサリの接続を許可しますか？』と出たら『許可』を押して、もう一度確かめてください。設定そのものは済んでいます。\n"; }
         elsif ($r->{lamp}) { print "NG Mac はランプを見つけて通信の係も付いていますが、通信の口（/dev/cu.usbmodem…）ができていません。ランプを挿し直して、もう一度確かめてください。\n"; }
-        else               { print "NG ランプが USB の機器として見えません。挿すと虹色に光っても、充電専用のケーブルや変換アダプタでは通信できません。パソコンに直接挿すか、別の USB の口で試してください。設定そのものは済んでいるので、つながればそのまま使えます。\n"; }
+        else {
+            # 電気は届くのに一覧に出ない。いちばん多いのは Mac の「アクセサリの接続の許可」で止められているとき
+            #   （前に「許可しない」を押した／ロック中に挿した／会社などの管理で止められている）。ケーブルはその次
+            my $m = mac_info();
+            print "NG Mac がランプを通信の相手として見つけていません（電気だけ届いている状態です）。設定そのものは済んでいるので、つながればそのまま使えます。\n";
+            if ($m->{managed}) {
+                print "（AI へ）この Mac は会社などの管理下にあります。USB の機器が管理の決まりで止められていることがあります。お客さんに伝え、管理している人に「USB の機器（AI Lamp）を使えるか」を聞いてもらう。お客さんの代わりに設定を変えない。\n";
+            }
+            if ($m->{arm}) {
+                print "（AI へ）次の順に案内する（1 回の返事でまとめて）:\n";
+                print "  1. 設定画面を開く: open 'x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension'（開かなければ「システム設定 → プライバシーとセキュリティ」を開いてもらう）\n";
+                print "  2. 下の方の「アクセサリの接続を許可」を「毎回確認」にしてもらう（今より安全側の設定。変えるのはお客さん。AI は変えない）\n";
+                print "  3. Mac のロックを外した状態で、ランプを抜いて 5 秒待ってから挿し直す →「アクセサリの接続を許可しますか？ AI Lamp」と出たら「許可」\n";
+                print "  4. 「挿した」の返事が来たら、もう一度 test を実行する。それでも NG なら、別の USB の口・パソコンに直接挿す（ハブや変換アダプタを外す）を試す\n";
+            } else {
+                print "（AI へ）ランプを抜いて 5 秒待ってから、パソコンに直接（ハブや変換アダプタを使わずに）挿し直してもらい、別の USB の口でも試してもらう。\n";
+            }
+        }
         print "（AI へ）原因をくわしく調べるときは: /usr/bin/perl \"$0\" diag\n";
         return;
     }

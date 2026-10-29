@@ -1,6 +1,6 @@
 {
   "name": "ai-lamp",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "AIの作業状態をUSBランプで知らせる（作業中=青 / 完了=緑 / あなたの出番（許可・質問・エラー）=橙）。Windows 用",
   "author": { "name": "ai-lamp" },
   "keywords": ["lamp", "notification", "hardware"]
