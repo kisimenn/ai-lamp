@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# AI通知ランプ 送信スクリプト（Mac 版）v0.8.8
+# AI通知ランプ 送信スクリプト（Mac 版）v0.8.10
 # Windows 版（lamp.ps1）と同じ動き。Mac に最初から入っている Perl だけで動く（ほかのソフトは不要）。
 #
 #   使い方: lamp.pl <work|done|ask|error|end|seen|tick|test>
@@ -44,7 +44,7 @@ sub open_lamp {
     }
     my $fd = fileno($fh);
     my $t = POSIX::Termios->new;
-    unless ($t->getattr($fd)) { close $fh; return undef; }
+    unless ($t->getattr($fd)) { close $fh; $LastErr = '口の設定を読めませんでした'; return undef; }
     $t->setiflag(0); $t->setoflag(0); $t->setlflag(0);
     $t->setcflag(CS8 | CREAD | CLOCAL);
     # 通信速度（USB シリアルでは意味がない）。Mac は速度をそのままの数で指定する。Perl の標準に B115200 は無い
@@ -52,7 +52,10 @@ sub open_lamp {
     eval { $t->setispeed($baud); $t->setospeed($baud); };
     $t->setcc(VMIN, 0); $t->setcc(VTIME, 0);
     $t->setattr($fd, TCSANOW);   # 速度の設定だけ断られても、生のまま通す設定（エコー無し）は効くので止めない
-    return $fh;   # 開くと DTR が立つ（CH552 は DTR が無いと返事しない）
+    # CH552 は DTR が無いと返事しない。Mac は開くと DTR が立つはずだが、念のため自分でも立てる
+    #   （TIOCMBIS = 0x8004746c、DTR = 0x002、RTS = 0x004。Mac の決まった番号。断られても困らない）
+    eval { my $bits = pack('i', 0x006); ioctl($fh, 0x8004746c, $bits); };
+    return $fh;
 }
 
 # 改行までの 1 行を読む。timeout 秒たっても来なければ undef
@@ -145,6 +148,12 @@ sub invoke_lamp {
         if (open(my $lf, '>>', $ENV{AI_LAMP_FAKE_LOG})) { print $lf "$line\n"; close $lf; }
         return 1;
     }
+    if ($ENV{AI_LAMP_FAKE_DEV}) {
+        if (open(my $pf, '>>', "$ENV{AI_LAMP_FAKE_DEV}/probes.log")) { print $pf "$port $line\n"; close $pf; }
+        my $yes = defined $ENV{AI_LAMP_FAKE_REPLY} && length $ENV{AI_LAMP_FAKE_REPLY} && index($port, $ENV{AI_LAMP_FAKE_REPLY}) >= 0;
+        $LastErr = $yes ? '' : '返事がありませんでした';
+        return $yes ? 1 : 0;
+    }
     $LastErr = '';
     my $fh = open_lamp($port) or return 0;
     my $ok = 0;
@@ -162,31 +171,45 @@ sub invoke_lamp {
         }
         1;
     };
+    # 返事が無かったときは、送りかけの文を捨ててから閉じる（Mac は、送り終わるまで閉じるのを待つことがあるため）
+    eval { POSIX::tcflush(fileno($fh), TCIOFLUSH()); } unless $ok;
     close $fh;
     $LastErr = '返事がありませんでした' unless $ok;
     return $ok;
 }
 
+# 通信の口の一覧（/dev/cu.usbmodem*）
+#   試験用: AI_LAMP_FAKE_DEV（/dev の代わりのフォルダ）、AI_LAMP_FAKE_REPLY（名前にこの文字を含む口だけが「返事をする」。問い合わせた口は probes.log に残る）
+sub dev_ports { return glob(($ENV{AI_LAMP_FAKE_DEV} || '/dev') . '/cu.usbmodem*'); }
+
 sub find_lamp {
-    my ($cached) = @_;
+    my ($cached, $wide) = @_;
     return 'fake' if $ENV{AI_LAMP_FAKE_LOG};
     return $ENV{AI_LAMP_PORT} if $ENV{AI_LAMP_PORT};
     return $cached if $cached && -e $cached && invoke_lamp($cached, 'ID?', 'AILAMP');
-    my @c = glob('/dev/cu.usbmodem*');
+    my @c = dev_ports();
     return undef unless @c;
-    # ランプ以外の機器（Arduino など。開かれただけで再起動するものがある）には問い合わせない。
-    #   Mac の機器の一覧でランプの口が分かればそれだけ、ランプが一覧に無ければ何もしない。
-    #   一覧を読めなかったとき・口の名前が取れなかったときだけ、今までどおり全部に聞く
+    # ランプ以外の機器（Arduino など。開かれただけで再起動するものがある）には、なるべく問い合わせない。
+    #   ランプの口の見分け方は 2 つ（どちらかで分かればよい）:
+    #     ・Mac の機器の一覧（ioreg）で、ランプの下にある口（IOCalloutDevice）
+    #     ・口の名前（Mac は USB の製造番号を名前に入れる。ランプの製造番号は CH55x → /dev/cu.usbmodemCH55x1）
+    #   $wide（ランプの確認＝お客さんが頼んだとき）は、見分けられなくても残りの口も 1 回だけ試す。
+    #     見分け方が Mac の版に合わなくても、ここで見つかれば場所を覚えるので、次からはすぐ送れる。
+    #   ふだんの合図（$wide なし）は、見分けた口だけ。一覧を読めなかったときだけ、今までどおり全部に聞く
     my $r = usb_report();
-    if ($r->{ran}) {
-        return undef unless $r->{lamp};
-        my %is = map { $_ => 1 } @{ $r->{ports} };
-        my @mine = grep { $is{$_} } @c;
-        @c = @mine if @mine;
-    }
-    foreach my $p (@c) {
+    my %is = map { $_ => 1 } @{ $r->{ports} };
+    my @mine = grep { $is{$_} || m{/cu\.usbmodemCH55x}i } @c;
+    my @rest = grep { my $p = $_; !grep { $_ eq $p } @mine } @c;
+    foreach my $p (@mine) {
         return $p if invoke_lamp($p, 'ID?', 'AILAMP');
     }
+    my $why = $LastErr;   # 見分けた口で失敗した理由を残す（残りの口の結果で上書きしない）
+    if (@rest && ($wide || !$r->{ran})) {
+        foreach my $p (@rest) {
+            return $p if invoke_lamp($p, 'ID?', 'AILAMP');
+        }
+    }
+    $LastErr = $why if @mine;
     return undef;
 }
 
@@ -447,7 +470,7 @@ sub mac_info {
 
 # ---------- 原因を調べる（光らないときに AI が実行する。会話の中身やほかの機器の名前は出さない） ----------
 sub lamp_diag {
-    my @c = glob('/dev/cu.usbmodem*');
+    my @c = dev_ports();
     my $r = usb_report();
     my $os = `/usr/bin/sw_vers -productVersion 2>/dev/null`; chomp $os;
     my $hw = `/usr/sbin/sysctl -n hw.model 2>/dev/null`; chomp $hw;
@@ -458,7 +481,7 @@ sub lamp_diag {
     print "通信の係（ACM）: " . ($r->{acm} ? "付いた" : "付いていない") . " / データの係: " . ($r->{data} ? "付いた" : "付いていない") . "\n";
     print "通信の口: " . (@c ? join(', ', @c) : ($r->{bsd} ? "係はできたが /dev/cu.usbmodem* が無い" : "無い")) . "\n";
     print "書き込み待ちの状態: " . ($r->{boot} ? "はい（抜いて挿し直す）" : "いいえ") . "\n";
-    my $port = @c ? find_lamp(undef) : undef;
+    my $port = @c ? find_lamp(undef, 1) : undef;
     print "ランプの返事: " . (defined $port ? "あり（$port）" : (@c ? "無し" . ($LastErr ? "（$LastErr）" : "") : "（口が無いので試していない）")) . "\n";
     print "--- ランプの下の様子（ioreg）---\n";
     print "$_\n" for (@{ $r->{tree} } ? @{ $r->{tree} } : ('（AI Lamp が一覧にありません）'));
@@ -488,22 +511,23 @@ sub lamp_diag {
 sub lamp_test {
     my $home = $ENV{HOME} || (getpwuid($<))[7];
     my $dir = $ENV{AI_LAMP_STATE_DIR} || "$home/.cache/ai-lamp";
-    my $port = find_lamp(undef);
+    my $port = find_lamp(undef, 1);
     # Mac は挿した直後の返事が遅れることがあるので、口があるのに見つからなければ、少し待ってもう 1 回だけ試す
-    if (!defined $port && !$ENV{AI_LAMP_FAKE_IOREG} && (() = glob('/dev/cu.usbmodem*'))) { sleep(1.5); $port = find_lamp(undef); }
+    if (!defined $port && !$ENV{AI_LAMP_FAKE_IOREG} && (() = dev_ports())) { sleep(1.5); $port = find_lamp(undef, 1); }
     unless (defined $port) {
-        my @c = glob('/dev/cu.usbmodem*');
+        my @c = dev_ports();
         my $why = $LastErr;
         # 通信の口が無いときは、Mac の機器の一覧（ioreg）で、どこまで進んでいるかを見て分ける
         my $r = usb_report();
-        my @mine = do { my %is = map { $_ => 1 } @{ $r->{ports} }; grep { $is{$_} } @c };
+        # ランプの口（一覧で分かった口か、名前に製造番号 CH55x が入っている口）
+        my @mine = do { my %is = map { $_ => 1 } @{ $r->{ports} }; grep { $is{$_} || m{/cu\.usbmodemCH55x}i } @c };
         if (!$r->{ran}) {
             # 一覧を読めなかった＝原因が分からない。ここで「Mac の設定を変えて」と案内してはいけない
             print "NG ランプを探せませんでした（Mac の機器の一覧を読めませんでした）。ランプや Mac の設定の問題とは限りません。\n";
             print "（AI へ）制限された環境（サンドボックス）の中で実行されている可能性があります。制限の外で実行し直すか、実行ボタン付きの形でお客さんに実行を頼んでください。お客さんに Mac の設定を変えてもらう案内は、まだしないでください。\n";
         }
         elsif ($r->{boot}) { print "NG ランプが「書き込みを待つ状態」になっています（ふだんの光り方をしません）。ランプを抜いて 5 秒待ってから挿し直し、もう一度確かめてください。\n"; }
-        elsif ($r->{lamp} && (@mine || (@c && !@{ $r->{ports} }))) {
+        elsif (@mine || ($r->{lamp} && @c && !@{ $r->{ports} })) {
             print "NG ランプの通信の口（" . join(', ', @mine ? @mine : @c) . "）はありますが、ランプに送れませんでした" . ($why ? "（$why）" : "") . "。\n";
             if ($why =~ /使っています/) { print "（AI へ）Arduino IDE などシリアル通信を使うソフトが開いていれば、閉じてもらってから、もう一度確かめる。\n"; }
             else { print "（AI へ）ランプを抜いて 5 秒待ってから挿し直してもらい、もう一度確かめる。\n"; }
