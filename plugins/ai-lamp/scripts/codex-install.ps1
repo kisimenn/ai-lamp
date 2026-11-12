@@ -31,8 +31,14 @@ $hooksFile = Join-Path $codexDir 'hooks.json'
 
 $doc = @{}
 if (Test-Path $hooksFile) {
+    $doc = $null
+    try { $doc = $json.DeserializeObject([System.IO.File]::ReadAllText($hooksFile, $utf8)) } catch { }
+    # 読めない設定は書き換えない（お客さんのほかのフックを壊さないため。控えも上書きしない）
+    if ($doc -isnot [System.Collections.IDictionary]) {
+        "Codex の設定（$hooksFile）が壊れているようです（設定として読めません）。書き換えずに止めました"
+        exit 1
+    }
     Copy-Item -Force $hooksFile "$hooksFile.bak-ai-lamp"   # 念のため控えを取る
-    $doc = $json.DeserializeObject([System.IO.File]::ReadAllText($hooksFile, $utf8))
 }
 if (-not $doc.ContainsKey('hooks') -or -not $doc['hooks']) { $doc['hooks'] = @{} }
 $hooks = $doc['hooks']

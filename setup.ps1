@@ -78,7 +78,7 @@ if ($NoClaude) {
     }
     $r2 = Invoke-Quiet $claude @('plugin', 'install', 'ai-lamp@ai-lamp-market')
     if ($r1.ok -and $r2.ok) {
-        $results += "OK Claude Code にプラグインを入れました（入れ元: $from。Claude を開き直すと有効になります）"
+        $results += "OK Claude Code にプラグインを入れました（入れ元: $from。Claude を開き直すと有効になります。使った claude: $claude）"
         $didClaude = $true
     } else {
         $results += "NG Claude Code へのプラグインの追加に失敗しました:`n$($r1.text)`n$($r2.text)"

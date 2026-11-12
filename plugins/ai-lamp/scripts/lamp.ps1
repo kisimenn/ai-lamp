@@ -14,7 +14,8 @@ param([string]$Kind, $InputJson = $null, [long]$QueuedTicks = 0)   # InputJson �
 
 $ErrorActionPreference = 'Stop'
 $Priority = @{ ask = 4; error = 3; work = 2; done = 1; off = 0 }
-$KnownVids = '303A', '2E8A', '10C4', '1209'   # Espressif, Raspberry Pi, Silicon Labs(CP2102N), CH552(ch55xduino)
+$KnownVids = @('1209')                    # ランプ（CH552）の番号だけ。ほかの電子工作の基板（ESP32・Pico・CP2102 など）には問い合わせない
+$LampPid = 'C550'
 $NoResetVids = '303A', '10C4'             # 開くとリセットされる基板。DTR を立てない
 $SessionTtl = 12 * 3600                   # 12時間更新のないセッションは忘れる
 $WorkTtl = 2 * 3600                       # 保険: 「作業中」のまま2時間合図のないセッションは忘れる
@@ -73,7 +74,7 @@ function Get-LampPorts {
     $knownInRegistry = 0
     $fast = @(foreach ($vid in $KnownVids) {
         Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Enum\USB' -ErrorAction SilentlyContinue |
-            Where-Object { $_.PSChildName -like "VID_$vid*" } | ForEach-Object {
+            Where-Object { $_.PSChildName -like "VID_$vid&PID_$LampPid*" } | ForEach-Object {
                 Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object {
                     $n = (Get-ItemProperty (Join-Path $_.PSPath 'Device Parameters') -ErrorAction SilentlyContinue).PortName
                     if ($n) { $knownInRegistry++ }
@@ -88,7 +89,7 @@ function Get-LampPorts {
     Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" | ForEach-Object {
         if ($_.Name -match '\((COM\d+)\)') {
             $com = $Matches[1]
-            if ($_.PNPDeviceID -match 'VID_([0-9A-Fa-f]{4})' -and $KnownVids -contains $Matches[1].ToUpper()) {
+            if ($_.PNPDeviceID -match 'VID_([0-9A-Fa-f]{4})' -and $KnownVids -contains $Matches[1].ToUpper() -and $_.PNPDeviceID -match "PID_$LampPid") {
                 [pscustomobject]@{ Port = $com; Vid = $Matches[1].ToUpper() }
             }
         }

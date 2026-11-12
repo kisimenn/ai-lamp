@@ -48,7 +48,7 @@ Mac のときは、あわせて次を伝える（許可しないとランプと�
 ## 1. ダウンロード（Windows）
 PowerShell で、次をそのまま実行する（`%USERPROFILE%\.cache\ai-lamp\src` に置く）。
 ```powershell
-$d = Join-Path $env:USERPROFILE '.cache\ai-lamp\src'; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip' -OutFile (Join-Path $d 'repo.zip'); Expand-Archive -Force (Join-Path $d 'repo.zip') $d; Get-ChildItem $d -Directory | Select-Object -ExpandProperty FullName
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072; $d = Join-Path $env:USERPROFILE '.cache\ai-lamp\src'; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/kisimenn/ai-lamp/archive/refs/heads/main.zip' -OutFile (Join-Path $d 'repo.zip'); Expand-Archive -Force (Join-Path $d 'repo.zip') $d; Get-ChildItem $d -Directory | Select-Object -ExpandProperty FullName
 ```
 最後に表示されたフォルダ（`...\ai-lamp-main`）を、次の手順で使う。
 
