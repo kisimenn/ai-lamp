@@ -36,7 +36,11 @@ if (-f $hooksFile) {
     local $/;
     my $txt = <$fh>;
     close $fh;
-    $doc = $js->decode($txt) if defined $txt && $txt =~ /\S/;
+    if (defined $txt && $txt =~ /\S/) {
+        $doc = eval { $js->decode($txt) };
+        # 読めない設定は書き換えない（お客さんのほかのフックを壊さないため）
+        die "~/.codex/hooks.json が壊れているようです（設定として読めません）。書き換えずに止めました\n" unless ref($doc) eq 'HASH';
+    }
 }
 $doc->{hooks} = {} unless ref($doc->{hooks}) eq 'HASH';
 my $hooks = $doc->{hooks};

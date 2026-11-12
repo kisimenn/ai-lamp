@@ -20,6 +20,11 @@ my $uninstall = grep { $_ eq '--uninstall' } @ARGV;
 # 動いている見張りを止める（無くてもよい）
 system("/bin/launchctl bootout gui/$uid '$plist' >/dev/null 2>&1");
 system("/bin/launchctl unload '$plist' >/dev/null 2>&1");   # 古い macOS 用
+# 止め終わるまで待つ（止めている途中にすぐ始めると、launchctl が失敗することがある）。最大 3 秒
+for (1 .. 15) {
+    last if system("/bin/launchctl print gui/$uid/$Label >/dev/null 2>&1") != 0;
+    select(undef, undef, undef, 0.2);
+}
 
 if ($uninstall) {
     unlink $plist;
@@ -51,9 +56,13 @@ XML
 close $fh;
 
 my $rc = system("/bin/launchctl bootstrap gui/$uid '$plist' >/dev/null 2>&1");
+if ($rc != 0) {   # まだ止めている途中だったときのために、少し待ってもう 1 回
+    sleep 1;
+    $rc = system("/bin/launchctl bootstrap gui/$uid '$plist' >/dev/null 2>&1");
+}
 $rc = system("/bin/launchctl load -w '$plist' >/dev/null 2>&1") if $rc != 0;   # 古い macOS 用
 if ($rc == 0) {
-    print "OK 既読で消える機能を入れました（Mac 版は試験中。Mac が「バックグラウンド項目が追加されました」と通知することがありますが、ランプの見張りなのでそのままで大丈夫です）\n";
+    print "OK 既読で消える機能を入れました（Mac 版は試験中。Mac が「バックグラウンド項目が追加されました」と通知することがあります。項目の名前は「perl」と出ることがありますが、ランプの見張りなのでそのままで大丈夫です）\n";
 } else {
     print "NG 既読で消える機能を始められませんでした（Mac を再起動すると動くことがあります）\n";
 }

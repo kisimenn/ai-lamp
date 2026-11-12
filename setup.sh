@@ -53,6 +53,16 @@ DID_CODEX=0
 add() { RESULTS="${RESULTS}$1
 "; }
 
+# 0. 置き場所に書けるか（制限された環境の中で実行されると書けない。そのまま進めると全部が中途半端になる）
+mkdir -p "$HOME/.cache/ai-lamp" 2>/dev/null
+if ! ( : > "$HOME/.cache/ai-lamp/.write-test" ) 2>/dev/null; then
+  echo "=== AI通知ランプの設定結果 ==="
+  echo "NG 設定を始められませんでした（$HOME/.cache/ai-lamp に書けません）。"
+  echo "（AI へ）制限された環境（サンドボックス）の中で実行されている可能性があります。制限の外で実行し直すか、実行ボタン付きの形でお客さんに実行を頼んでください。"
+  exit 1
+fi
+rm -f "$HOME/.cache/ai-lamp/.write-test"
+
 # 1. プラグイン一式をコピー
 rm -rf "$MARKET"
 mkdir -p "$MARKET"
@@ -67,6 +77,7 @@ if [ $NO_CLAUDE -eq 1 ]; then
   add "-- Claude Code では使わないとのことなので、Claude 用の設定は飛ばしました"
 elif [ -n "$CLAUDE" ]; then
   "$CLAUDE" plugin uninstall ai-lamp@ai-lamp-market >/dev/null 2>&1   # 0.6.6 までの名前（Mac 版も ai-lamp だった）
+  "$CLAUDE" plugin uninstall ai-lamp-mac@ai-lamp-market >/dev/null 2>&1   # 2 回目の setup で「すでに入っています」にならないように
   "$CLAUDE" plugin marketplace remove ai-lamp-market >/dev/null 2>&1
   # GitHub から入れる（更新が届く）。届かないときはコピーから入れる（更新は届かない）
   FROM="GitHub"; S1=1; R1=""
@@ -85,7 +96,7 @@ elif [ -n "$CLAUDE" ]; then
   fi
   R2="$("$CLAUDE" plugin install ai-lamp-mac@ai-lamp-market 2>&1)"; S2=$?
   if [ $S1 -eq 0 ] && [ $S2 -eq 0 ]; then
-    add "OK Claude Code にプラグインを入れました（入れ元: $FROM。Claude を開き直すと有効になります）"
+    add "OK Claude Code にプラグインを入れました（入れ元: $FROM。Claude を開き直すと有効になります。使った claude: $CLAUDE）"
     DID_CLAUDE=1
   else
     add "NG Claude Code へのプラグインの追加に失敗しました:
@@ -98,11 +109,11 @@ fi
 
 # 3. Codex
 if [ $NO_CODEX -eq 0 ] && [ -d "$HOME/.codex" ]; then
-  if /usr/bin/perl "$SCRIPTS/codex-install.pl" >/dev/null 2>&1; then
+  if CX="$(/usr/bin/perl "$SCRIPTS/codex-install.pl" 2>&1)"; then
     add "OK Codex 用のフックを入れました（ランプのフックを承認してください。Codex アプリは、入力欄の下に出る、黄色い点付きのフックのアイコン →「フックの確認」で、lamp.pl と書かれたランプ用のフックを許可（全部ランプ用なら「すべて許可」、ほかのフックもあればランプ用だけ選んで「選択した項目を許可」）。これで完了で、設定画面でもう一度同じ操作をする必要はありません。アイコンが無いときは承認済みのこともあるので 設定 → Hooks で確かめます。ターミナルの Codex は /hooks）"
     DID_CODEX=1
   else
-    add "NG Codex 用のフックの追加に失敗しました"
+    add "NG Codex 用のフックの追加に失敗しました: $(printf '%s' "$CX" | tail -n 1)"
   fi
 elif [ $NO_CODEX -eq 0 ]; then
   add "-- Codex は入っていないようなので、Codex 用の設定は飛ばしました"

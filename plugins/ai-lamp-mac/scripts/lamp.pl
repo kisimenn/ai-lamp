@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# AI通知ランプ 送信スクリプト（Mac 版）v0.8.7
+# AI通知ランプ 送信スクリプト（Mac 版）v0.8.8
 # Windows 版（lamp.ps1）と同じ動き。Mac に最初から入っている Perl だけで動く（ほかのソフトは不要）。
 #
 #   使い方: lamp.pl <work|done|ask|error|end|seen|tick|test>
@@ -472,7 +472,9 @@ sub lamp_diag {
     if (open(my $lg, '-|', '/usr/bin/log', 'show', '--last', '3m', '--style', 'compact', '--predicate',
              'subsystem BEGINSWITH "com.apple.iokit.IOUSB" OR eventMessage CONTAINS[c] "usb" OR eventMessage CONTAINS[c] "accessor"')) {
         while (my $l = <$lg>) {
-            next unless $l =~ /fail|error|enumerat|accessor|denied|disallow|restrict|block|1209|c550|AI Lamp|over.?current/i;
+            # ランプか許可にかかわる行と、USB の失敗の行だけ（ほかの機器の名前をなるべく拾わない）
+            next unless $l =~ /AI Lamp|0x1209|c550|accessor/i
+                     || ($l =~ /usb/i && $l =~ /fail|error|enumerat|denied|disallow|restrict|block|over.?current/i);
             chomp $l; push @log, substr($l, 0, 220);
         }
         close $lg;

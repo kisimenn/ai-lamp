@@ -54,8 +54,11 @@ sub watch_log {
 
 # 最後にマウスかキーボードを触ってから何秒たったか（読めなければ -1）
 sub idle_seconds {
-    my $out = `/usr/sbin/ioreg -c IOHIDSystem -d 4 2>/dev/null`;
-    return $1 / 1e9 if defined $out && $out =~ /"HIDIdleTime"\s*=\s*(\d+)/;
+    # IOHIDSystem だけを取り出す（-r）。機種によって深さが違うので、深さで切らない。読めなければ全体から探す
+    foreach my $cmd ('/usr/sbin/ioreg -r -c IOHIDSystem -d 1 2>/dev/null', '/usr/sbin/ioreg -c IOHIDSystem 2>/dev/null') {
+        my $out = `$cmd`;
+        return $1 / 1e9 if defined $out && $out =~ /"HIDIdleTime"\s*=\s*(\d+)/;
+    }
     return -1;
 }
 
